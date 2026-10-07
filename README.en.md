@@ -106,6 +106,7 @@ Import the `.tex` you want to touch up → make visual text and structure adjust
 <details>
 <summary><b>Version History</b></summary>
 
+- **v2.0.1**: maintenance release, main.js unchanged; license moved from MIT to Apache-2.0; UI restyled with design tokens and a warm-white academic theme, toolbar buttons switched to plain text; added CI checks and automatic GitHub Pages demo deployment
 - **v2.0.0**: repositioned as a general offline LaTeX light editor; added .tex import; verbatim preservation of unsupported structures for lossless round-trips; fixed preamble not being cached with drafts and formulas losing user edits
 - **v1.1.0**: visual editor + formula assistant for math-modeling papers (removed in v2.0.0)
 - **v1.0.0**: initial release
