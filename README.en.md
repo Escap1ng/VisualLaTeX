@@ -4,7 +4,7 @@
 
 **Import · Tweak · Export — an offline LaTeX light editor that never loses a character**
 
-[![Version](https://img.shields.io/badge/Version-v2.0.1-6f42c1)](https://github.com/Escap1ng/VisualLaTeX/releases)
+[![Version](https://img.shields.io/badge/Version-v2.0.2-6f42c1)](https://github.com/Escap1ng/VisualLaTeX/releases)
 [![License](https://img.shields.io/badge/License-Apache_2.0-0366d6)](./LICENSE)
 [![CI](https://github.com/Escap1ng/VisualLaTeX/actions/workflows/ci.yml/badge.svg)](https://github.com/Escap1ng/VisualLaTeX/actions/workflows/ci.yml)
 [![Online Demo](https://img.shields.io/badge/Online_Demo-GitHub_Pages-00b4d8)](https://Escap1ng.github.io/VisualLaTeX/)
@@ -106,6 +106,7 @@ Import the `.tex` you want to touch up → make visual text and structure adjust
 <details>
 <summary><b>Version History</b></summary>
 
+- **v2.0.2**: mobile and narrow-viewport adaptation — one panel per screen with bottom tabs switching between the editor and LaTeX code, toolbar collapsed into a single horizontally scrollable row with >=44px touch targets, `min-height:0` fix so the code preview is no longer clipped off-screen, `100dvh` and 16px inputs so iOS no longer zooms the page on focus; LaTeX conversion and export logic unchanged
 - **v2.0.1**: maintenance release, main.js unchanged; license moved from MIT to Apache-2.0; UI restyled with design tokens and a warm-white academic theme, toolbar buttons switched to plain text; added CI checks and automatic GitHub Pages demo deployment
 - **v2.0.0**: repositioned as a general offline LaTeX light editor; added .tex import; verbatim preservation of unsupported structures for lossless round-trips; fixed preamble not being cached with drafts and formulas losing user edits
 - **v1.1.0**: visual editor + formula assistant for math-modeling papers (removed in v2.0.0)
