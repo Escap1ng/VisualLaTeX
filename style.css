@@ -344,24 +344,191 @@ textarea:focus-visible {
     background: #b5ab98;
 }
 
-/* 响应式设计 */
-@media (max-width: 768px) {
+/* ============================================================
+   移动端 / 窄屏适配
+   触发：宽度 ≤768px，或高度 ≤500px（横屏手机）
+   桌面宽屏不受本节影响；分段控件在桌面隐藏
+   ============================================================ */
+
+.panel-tabs {
+    display: none;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+}
+
+@media (max-width: 768px), (max-height: 500px) {
+    html {
+        -webkit-text-size-adjust: 100%;
+    }
+
+    /* 移动浏览器地址栏收起/展开时 100vh 是错的，dvh 才对；前一行作回退 */
+    .container {
+        height: 100vh;
+        height: 100dvh;
+    }
+
+    .header {
+        padding: 10px 16px;
+    }
+
+    .header h1 {
+        font-size: 18px;
+    }
+
+    .header p {
+        font-size: 12px;
+        margin-top: 2px;
+    }
+
+    /* 工具栏：17 个按钮收成一行横向滑动，触控高度 ≥44px */
+    .toolbar {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior-x: contain;
+        scrollbar-width: none;
+        padding: 8px 10px;
+    }
+
+    .toolbar::-webkit-scrollbar {
+        display: none;
+    }
+
+    .toolbar button {
+        flex: 0 0 auto;
+        min-height: 44px;
+        padding: 10px 12px;
+        font-size: 14px;
+        /* 缺这条时 CJK 标签会被压成一列字（实测 35px 宽 × 90px 高） */
+        white-space: nowrap;
+    }
+
+    .toolbar .separator {
+        flex: 0 0 1px;
+    }
+
+    /* 一屏一个面板，由底部 tab 切换 */
     .main-content {
         flex-direction: column;
     }
 
+    .editor-panel,
+    .preview-panel {
+        flex: 1 1 auto;
+        /* 关键：不设 min-height:0，flex 子项按内容高拒绝收缩，
+           预览区会被 overflow:hidden 整块裁到屏幕外 */
+        min-height: 0;
+    }
+
     .editor-panel {
         border-right: none;
-        border-bottom: 1px solid var(--border);
     }
 
-    .toolbar {
-        padding: 8px 10px;
+    .preview-panel {
+        display: none;
     }
 
-    .toolbar button {
-        padding: 6px 10px;
+    .main-content.show-preview .editor-panel {
+        display: none;
+    }
+
+    .main-content.show-preview .preview-panel {
+        display: flex;
+    }
+
+    /* 面板标题与 tab 文字重复，窄屏省出这 42px 给内容 */
+    .panel-header {
+        display: none;
+    }
+
+    .panel-tabs {
+        display: flex;
+    }
+
+    .panel-tabs button {
+        flex: 1;
+        min-height: 44px;
+        padding: 10px 12px;
+        border: none;
+        background: var(--surface);
+        color: var(--text-secondary);
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: var(--transition);
+    }
+
+    .panel-tabs button.active {
+        color: var(--accent);
+        box-shadow: inset 0 -3px 0 var(--accent);
+    }
+
+    .editor-area {
+        padding: 18px 16px;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+    }
+
+    .editor-area ul,
+    .editor-area ol {
+        padding-left: 22px;
+    }
+
+    .editor-area .formula-block {
+        font-size: 14px;
+        overflow-x: auto;
+    }
+
+    .preview-area {
+        padding: 16px;
         font-size: 13px;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .status-bar {
+        padding: 8px 14px;
+        font-size: 12px;
+    }
+
+    /* 公式弹窗贴底铺开，符号与输入区触控目标加大 */
+    .modal-overlay {
+        align-items: flex-end;
+    }
+
+    .modal-dialog {
+        width: 100%;
+        max-width: 100%;
+        max-height: 92vh;
+        max-height: 92dvh;
+        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    }
+
+    .modal-close {
+        width: 44px;
+        height: 44px;
+    }
+
+    .symbol-palette button {
+        min-height: 44px;
+        padding: 8px 12px;
+    }
+
+    /* iOS：输入框字号 <16px 会在聚焦时放大整页且回不去 */
+    #formulaInput {
+        font-size: 16px;
+    }
+
+    .btn-insert {
+        min-height: 44px;
+    }
+}
+
+/* 横屏手机：副标题让位给编辑区 */
+@media (max-height: 500px) {
+    .header p {
+        display: none;
     }
 }
 

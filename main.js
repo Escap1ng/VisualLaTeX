@@ -23,6 +23,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // 绑定工具栏按钮事件
     initToolbar();
 
+    // 窄屏下的编辑区/代码预览切换
+    initPanelTabs();
+
     // 初始化公式输入弹窗
     initFormulaModal();
 
@@ -107,6 +110,48 @@ function initToolbar() {
     // 导出按钮
     document.getElementById('btnCopy').addEventListener('click', copyLatex);
     document.getElementById('btnDownload').addEventListener('click', downloadTexFile);
+}
+
+// 窄屏面板切换：手机一屏只放一个面板，靠底部 tab 在编辑区与代码预览之间切换
+function initPanelTabs() {
+    const tabs = document.getElementById('panelTabs');
+    const btnEditor = document.getElementById('tabEditor');
+    const btnPreview = document.getElementById('tabPreview');
+    const mainContent = document.querySelector('.main-content');
+    if (!tabs || !btnEditor || !btnPreview || !mainContent) {
+        return;
+    }
+
+    function setPanel(showPreview) {
+        mainContent.classList.toggle('show-preview', showPreview);
+        btnPreview.classList.toggle('active', showPreview);
+        btnEditor.classList.toggle('active', !showPreview);
+        btnPreview.setAttribute('aria-selected', showPreview ? 'true' : 'false');
+        btnEditor.setAttribute('aria-selected', showPreview ? 'false' : 'true');
+        if (showPreview) {
+            updatePreview();
+        }
+    }
+
+    btnEditor.addEventListener('click', function() {
+        setPanel(false);
+    });
+    btnPreview.addEventListener('click', function() {
+        setPanel(true);
+    });
+
+    // 代码视图下编辑区是隐藏的，execCommand 打不到它：工具栏一动就先切回编辑区
+    // 复制与下载只读代码，不需要切回去
+    const keepPreview = { btnCopy: true, btnDownload: true };
+    document.querySelector('.toolbar').addEventListener('click', function(e) {
+        const btn = e.target && e.target.closest ? e.target.closest('button') : null;
+        if (!btn || keepPreview[btn.id]) {
+            return;
+        }
+        if (mainContent.classList.contains('show-preview')) {
+            setPanel(false);
+        }
+    }, true);
 }
 
 // 插入标题
