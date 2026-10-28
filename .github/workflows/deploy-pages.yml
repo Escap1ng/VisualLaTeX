@@ -29,17 +29,24 @@ jobs:
 
       - name: 验证待部署的同一提交
         run: |
-          node --check main.js
+          for file in main.js workspace.js project-model.js project-archive.js preview.js compiler.mjs server.mjs; do
+            node --check "$file"
+          done
           node tests/smoke.mjs
           node --test
 
       - name: 配置 Pages
         uses: actions/configure-pages@v5
 
+      - name: 准备静态编辑器
+        run: |
+          mkdir site
+          cp index.html style.css workspace.css preview.css main.js workspace.js project-model.js project-archive.js preview.js LICENSE site/
+
       - name: 上传站点产物
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .   # 纯静态项目，直接上传仓库根目录
+          path: site   # Pages 仅提供编辑；编译需要本机 Node 服务和工具链。
 
   deploy:
     needs: build

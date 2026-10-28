@@ -6,6 +6,7 @@
     <title>VisualLaTeX Studio · LaTeX 与 PostScript 工作台</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="workspace.css">
+    <link rel="stylesheet" href="preview.css">
 </head>
 <body class="workspace-app">
     <div class="container">
@@ -53,6 +54,17 @@
                 <button id="btnOutline" type="button" aria-controls="contextSidebar" aria-expanded="false">结构与引用</button>
             </div>
         </nav>
+
+        <div class="compile-toolbar" aria-label="编译与 PDF 导出">
+            <label for="compileTarget">编译目标</label>
+            <select id="compileTarget" aria-label="LaTeX 或 PostScript 编译目标"></select>
+            <button id="btnCompile" class="primary" type="button" title="编译预览（Ctrl+Enter）" disabled>编译预览</button>
+            <button id="btnCancelCompile" type="button" hidden>取消编译</button>
+            <button id="btnExportPdf" type="button" disabled>导出 PDF</button>
+            <button id="btnTogglePreview" type="button" aria-controls="pdfPreviewPane" aria-expanded="false">PDF 预览</button>
+            <span id="compilerStatus" class="compiler-status">本机编译</span>
+            <button id="btnCompilerRetry" type="button" title="重新检测本机编译服务">重新检测</button>
+        </div>
 
         <div class="workbench main-content" id="workspaceShell">
             <aside class="project-sidebar" id="fileSidebar" aria-label="项目文件">
@@ -144,6 +156,25 @@
                     <p class="sidebar-note">引用键和文献条目可在源码中直接修改。</p>
                 </section>
             </aside>
+
+            <aside id="pdfPreviewPane" class="pdf-preview-pane" hidden aria-label="编译后的 PDF 预览">
+                <div class="pdf-preview-header">
+                    <h2>PDF 预览</h2>
+                    <span id="previewDocument">尚未生成 PDF</span>
+                    <button id="btnClosePreview" type="button">返回编辑</button>
+                </div>
+                <p id="compileStatus" class="compile-status" role="status" aria-live="polite">正在检测本机编译服务…</p>
+                <p id="previewStale" class="preview-stale" hidden>当前显示上一次结果；请重新编译以反映最新源码。</p>
+                <div class="pdf-proof">
+                    <div id="pdfEmpty" class="pdf-empty"><strong>查看排版结果</strong>选择 LaTeX、PS 或 EPS 文件后点击「编译预览」。修改源码后可重新编译，也可直接导出最新 PDF。</div>
+                    <iframe id="pdfFrame" title="编译后的 PDF 文档" hidden></iframe>
+                </div>
+                <a id="pdfOpen" class="pdf-open" target="_blank" rel="noopener" hidden>在新窗口打开 PDF（预览不可用时）</a>
+                <details id="compileLogs" class="compile-logs">
+                    <summary>编译日志</summary>
+                    <pre id="compileLog">编译后将在这里显示引擎日志。</pre>
+                </details>
+            </aside>
         </div>
 
         <footer class="status-bar workspace-status" role="status" aria-live="polite">
@@ -191,5 +222,6 @@
     <script src="project-model.js"></script>
     <script src="project-archive.js"></script>
     <script src="workspace.js"></script>
+    <script src="preview.js"></script>
 </body>
 </html>

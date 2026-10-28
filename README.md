@@ -1,18 +1,53 @@
 # VisualLaTeX Studio
 
-**LaTeX 与 PostScript 的离线项目编辑器。**
+**支持本地编译、PDF 预览与导出的 LaTeX / PostScript 项目编辑器。**
 
-这是基于 [Escap1ng/VisualLaTeX](https://github.com/Escap1ng/VisualLaTeX) 的独立工作区版本，在原有无损导入修复之上，加入完整源码、多文件项目、参考文献与 ZIP 管理。运行时零依赖，无需安装或联网。
+这是基于 [Escap1ng/VisualLaTeX](https://github.com/Escap1ng/VisualLaTeX) 的独立工作区版本，提供完整源码、多文件项目、参考文献、ZIP 管理及真实编译。编辑器与本地服务不依赖 npm 包；编译需要 Node.js 22+ 和相应工具链。
 
 **所有文本文件都能直接编辑。** 导言区、宏定义、`\cite`、`\ref`、`\label`、BibTeX 条目以及 PostScript 程序不再受可视化解析能力限制。未完成的源码也可以保存和导出。
 
 ## 开始使用
 
-下载并解压源码包，双击 `index.html`。默认项目包含 `main.tex`、`references.bib` 和 `drawing.ps`。
+默认项目包含 `main.tex`、`references.bib` 和 `drawing.ps`。只需编辑时可以双击 `index.html`；需要预览和 PDF 导出时，按以下方式启动本地服务。
+
+### Windows
+
+安装 [Node.js 22 或更新版本](https://nodejs.org/en/download)，解压源码包，在该目录打开 PowerShell：
+
+```powershell
+.\setup-windows.ps1
+.\start.ps1
+```
+
+如果 PowerShell 的默认执行策略阻止脚本，可对这一次调用使用 `powershell -NoProfile -ExecutionPolicy Bypass -File .\setup-windows.ps1`，启动脚本同理；无需修改系统执行策略。
+
+安装脚本下载固定版本的 Tectonic 0.17.0、Ghostscript 10.08.0 和解压工具，校验官方发布的 SHA-256 后放入当前目录的 `.tools`。它只解包安装器，不运行安装器、不写注册表、不覆盖项目文件。再次执行会保留已存在的工具；失败时下载和暂存文件会留在 `.tools` 便于检查。第三方引擎未包含在源码包中，各自许可保留在下载包内。
+
+启动后在浏览器打开终端显示的地址，默认是 `http://127.0.0.1:4173`。更换端口可用 `.\start.ps1 -Port 4174`。终端需保持运行；按 Ctrl+C 退出。
+
+### macOS、Linux 或已有工具链
+
+安装 [Tectonic](https://tectonic-typesetting.github.io/book/latest/installation/index.html) 或 XeLaTeX，以及 [Ghostscript](https://ghostscript.com/releases/gsdnld.html)，确保可执行文件在 PATH 中，然后运行：
+
+```bash
+node server.mjs
+```
+
+也可用以下环境变量指定已有引擎的**可执行文件路径**：`VISUALLATEX_TECTONIC`、`VISUALLATEX_XELATEX`、`VISUALLATEX_GHOSTSCRIPT`；XeLaTeX 的文献工具可用 `VISUALLATEX_BIBTEX`、`VISUALLATEX_BIBER`。显式设置 XeLaTeX 可选择本机 TeX 发行版；不要同时指定两个 LaTeX 引擎。
+
+Tectonic 首次编译会按需联网下载宏包和字体支持文件，之后可复用缓存；源码在本机编译，不上传到第三方。Windows 启动脚本将缓存放在 `.tools/cache`；也可设置 `TECTONIC_CACHE_DIR`。已有本机 TeX 发行版按其自身方式管理宏包与字体。
+
+### 编辑与生成 PDF
 
 1. 用「添加文件」加入文件，或用「打开文件夹」「打开项目」导入目录/ZIP。
 2. 从左侧选择文件，在源码区直接修改。`main.tex` 等完整 LaTeX 文档还可切换到「可视化」。
 3. 用「下载文件」导出当前文件，或用「导出 ZIP」保存整个项目及资源。
+4. 选择编译目标：LaTeX 使用完整的主文档，PostScript 使用 `.ps` / `.eps` 文件，点击编译/渲染或按 Ctrl/Cmd+Enter。
+5. 在预览区检查生成的 PDF，使用「导出 PDF」保存结果。编译失败可查看日志，也可取消运行中的任务。
+
+修改源码后，旧 PDF 会标记为过期；导出会先编译当前内容，避免将旧结果误当成最新版本。编译失败时保留上次预览，项目源码保持可编辑。浏览器不支持内嵌 PDF 时仍可下载 PDF 后用本机阅读器打开。
+
+`file://` 和 GitHub Pages 的静态版本只提供编辑，不执行编译。浏览器草稿按来源隔离；从旧离线页面切到本地服务前，请先导出 ZIP，再在本地服务中打开。
 
 打开文件夹或项目包会在确认后替换当前项目；添加文件会保留已有文件，并自动为重名文件另起名称。源码中已有的 `\input`、图片路径和引用键不会因重命名文件而自动重写。
 
@@ -30,6 +65,9 @@
 | 图片等资源 | 二进制文件按原始字节保存；二进制 EPS 保留为资源，可单独下载 |
 | 项目 ZIP | 导入 stored/deflate ZIP，导出标准 ZIP；包含未打开文件的编辑及原始资源 |
 | 本机草稿 | 整个项目单次保存；失败时显示状态；兼容旧版单文档草稿迁移 |
+| LaTeX 编译 | Tectonic 或 XeLaTeX，带项目文件与资源、引用及参考文献处理 |
+| PostScript 渲染 | Ghostscript 将 PS/EPS 转为 PDF；EPS 按 BoundingBox 裁切 |
+| PDF 预览与导出 | 编译目标选择、取消、错误日志、旧结果标记及当前版本导出 |
 
 在可视化中双击引用命令会定位到源码，直接修改完整命令。双击公式可使用公式编辑窗口。LaTeX 章节、基础格式、列表、公式和简单图片保留可视化支持；复杂结构以可编辑原文块呈现。
 
@@ -43,6 +81,7 @@
 | Ctrl/Cmd + F | 当前文件查找替换 |
 | Ctrl/Cmd + Z | 撤销 |
 | Ctrl/Cmd + Shift + Z / Ctrl + Y | 重做 |
+| Ctrl/Cmd + Enter | 编译或渲染当前目标 |
 | Tab | 在源码中插入两个空格 |
 
 底栏的编码按钮可显式切换 UTF-8 / Latin-1。Latin-1 不能表达的字符不会被静默替换；需要输入这些字符时先切换编码。
@@ -53,8 +92,11 @@
 - 浏览器自动保存容量由浏览器决定，可能小于项目导入上限。大项目请使用「导出 ZIP」备份；撤销历史仅保留在当前会话。
 - UTF-8 BOM、原始换行和未编辑的 LaTeX 源码块会被保留。可视化改动的区段会重新生成 LaTeX。
 - ZIP 中的项目名称、主文件和当前文件记录在 ZIP 注释中，不占用或覆盖用户文件名；第三方重新打包可能移除这些设置，但源码和资源仍可导入。
-- 本版本负责编辑与项目管理，**不执行 TeX 或 PostScript 程序，也不编译/渲染 PDF、PS**。将导出的项目交给现有 TeX / Ghostscript 工具链处理。
-- 不支持 TeX 宏展开或完整语法诊断。可视化能力不足时，完整源码仍可编辑。
+- 编译是显式操作，默认最长 180 秒；初次下载宏包可能较慢。修复错误后可重新编译，日志包含引擎报告的文件名和行号。
+- Tectonic 提供 TeX/BibTeX 自动多遍处理；BibLaTeX/Biber 项目应使用安装了 Biber 的 XeLaTeX 工具链。中文及自定义字体需在工具链中可用。需要 shell-escape 的宏包（例如部分 minted 工作流）不受支持。
+- 字体实测限制：Tectonic 0.17.0 使用默认 ctex/Fandol 字体时，样例 PDF 的中文外观正常，但复制或文本提取的字符映射异常。Windows 上有对应系统字体时，可在自己的文档中显式使用 `\usepackage[UTF8,fontset=windows]{ctex}`；该设置已在此 Windows 样例验证复制正常。应用不会自动修改项目的字体设置，其他平台和字体组合需自行核验。
+- 服务仅绑定本机回环地址，检查 Host、Origin 和会话令牌；临时项目目录在任务结束后清理。Tectonic 使用 `--untrusted`，XeLaTeX 关闭 shell-escape，Ghostscript 使用 `SAFER`。这些选项**不是操作系统沙箱**，请编译可信的本机项目，不要将此服务改成公网编译服务。
+- 可视化编辑不提供完整 TeX 语法分析；正式排版与诊断以编译引擎结果为准。
 
 ## 开发与验证
 
@@ -63,11 +105,16 @@ Node.js 22+，无需安装 npm 包：
 ```bash
 node --check main.js
 node --check workspace.js
+node --check preview.js
+node --check compiler.mjs
+node --check server.mjs
 node tests/smoke.mjs
 node --test
 ```
 
-测试覆盖源码往返、HTML 注入、草稿迁移、多文件历史、引用索引、PostScript/资源字节、ZIP 完整性以及实际界面事件。DOM 测试使用最小模型，不代表真实浏览器布局或 TeX/PS 编译验证。
+测试覆盖源码往返、HTML 注入、草稿迁移、多文件历史、引用索引、PostScript/资源字节、ZIP 完整性、编译进程与本地服务边界、取消/过期结果及实际界面事件。常规测试通过模拟引擎验证流程，无需安装工具链；DOM 测试使用最小模型，不代表真实浏览器布局或实际引擎排版验证。
+
+本次真实工具链验证使用 Tectonic 和 Ghostscript；XeLaTeX 分支尚未在真实发行版中验证。
 
 CI 检查 `main` / `dev` 的推送与 PR；部署和发布都在检查通过后执行。
 
@@ -77,6 +124,9 @@ workspace.js                文件、编辑模式、查找替换与导入导出�
 project-model.js            源码、项目状态、历史、引用索引
 project-archive.js          无依赖 ZIP 读写
 main.js / style.css         LaTeX 解析、转换及可视化编辑核心
+preview.js / preview.css    编译状态、PDF 预览和导出界面
+compiler.mjs / server.mjs   本机编译工具与回环 HTTP 服务
+setup-windows.ps1 / start.ps1  Windows 便携工具安装与启动
 tests/                      零依赖回归测试
 ```
 

@@ -564,4 +564,5 @@ function initWorkspace() {
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') app.persist(); });
     app.show(); panels();
     if (!blocked) notify('源码模式：导言区、引用、LaTeX 和 PostScript 均可直接编辑');
+    if (typeof initCompilation === 'function') initCompilation(app);
 }
