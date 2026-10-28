@@ -11,7 +11,7 @@ const markup = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8'
 const sources = ['main.js', 'project-model.js', 'project-archive.js', 'workspace.js']
     .map(name => [name, fs.readFileSync(new URL('../' + name, import.meta.url), 'utf8')]);
 
-async function fixture({denyStorage = false, initialStorage = []} = {}) {
+async function fixture({denyStorage = false, denyDialogs = false, initialStorage = []} = {}) {
     const root = new Element('fixture-root');
     root.innerHTML = markup;
     const storage = new Map(initialStorage);
@@ -27,10 +27,14 @@ async function fixture({denyStorage = false, initialStorage = []} = {}) {
             if (!target._events.has(type)) target._events.set(type, []);
             target._events.get(type).push(listener);
         };
+        target.removeEventListener = (type, listener) => {
+            target._events.set(type, (target._events.get(type) || []).filter(item => item !== listener));
+        };
     };
     async function emit(target, type, properties = {}) {
-        const event = {type, target, defaultPrevented: false,
-            preventDefault() { this.defaultPrevented = true; }, ...properties};
+        const event = {type, target, defaultPrevented: false, propagationStopped: false,
+            preventDefault() { this.defaultPrevented = true; },
+            stopPropagation() { this.propagationStopped = true; }, ...properties};
         for (const listener of target._events?.get(type) || []) await listener(event);
         return event;
     }
@@ -110,7 +114,9 @@ async function fixture({denyStorage = false, initialStorage = []} = {}) {
         TextEncoder, TextDecoder, Uint8Array, ArrayBuffer, DataView, atob, btoa, Blob,
         DecompressionStream, ReadableStream, Date, console,
         localStorage: {getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, String(value)), removeItem: key => storage.delete(key)},
-        prompt: () => prompts.shift() ?? null, confirm: () => true, alert: message => alerts.push(message),
+        prompt: () => { if (denyDialogs) throw new Error('prompt() is not supported.'); return prompts.shift() ?? null; },
+        confirm: () => { if (denyDialogs) throw new Error('confirm() is not supported.'); return true; },
+        alert: message => alerts.push(message),
         setTimeout: callback => { const id = ++timer; tasks.set(id, callback); return id; },
         clearTimeout: id => tasks.delete(id),
         navigator: {clipboard: {writeText: async () => {}}},
@@ -143,6 +149,159 @@ test('actual workspace startup binds the real markup in source mode', async () =
     assert.equal(f.node('fileTree').querySelectorAll('button').length, 3);
     assert.equal(f.node('modeSource').getAttribute('aria-pressed'), 'true');
     assert.deepEqual(f.alerts, []);
+});
+
+test('project name input persists before blur and survives editor renders, file changes and reload', async () => {
+    const f = await fixture();
+    f.node('projectName').focus();
+    await f.input('projectName', '浏览器验收项目');
+    assert.equal(f.app.model.name, '浏览器验收项目');
+    assert.equal(f.node('saveState').textContent, '待保存');
+    f.node('projectName').setSelectionRange(2, 4);
+    f.app.onChange();
+    assert.equal(f.node('projectName').value, '浏览器验收项目');
+    assert.equal(f.node('projectName').selectionStart, 2);
+    assert.equal(f.node('projectName').selectionEnd, 4);
+    f.node('sourceArea').focus();
+    await f.input('sourceArea', 'Edited source after renaming');
+    f.app.switchFile('drawing.ps');
+    await f.flushTimers();
+    assert.equal(f.node('projectName').value, '浏览器验收项目');
+    const restored = await fixture({initialStorage: [...f.storage]});
+    assert.equal(restored.app.model.name, '浏览器验收项目');
+    assert.equal(restored.node('projectName').value, '浏览器验收项目');
+    assert.equal(restored.app.model.get('main.tex').text, 'Edited source after renaming');
+});
+
+test('project name editing keeps draft whitespace until change and shows names from replacement projects', async () => {
+    const f = await fixture();
+    f.node('projectName').focus();
+    await f.input('projectName', '  Draft name  ');
+    f.app.onChange();
+    assert.equal(f.node('projectName').value, '  Draft name  ');
+    assert.equal(f.app.model.name, 'Draft name');
+    await f.emit(f.node('projectName'), 'change');
+    assert.equal(f.node('projectName').value, 'Draft name');
+    await f.input('projectName', '');
+    f.app.onChange();
+    assert.equal(f.node('projectName').value, '');
+    await f.emit(f.node('projectName'), 'change');
+    assert.equal(f.node('projectName').value, '未命名项目');
+    const replacement = f.context.defaultWorkspace();
+    replacement.name = 'Replacement project';
+    f.app.replaceProject(replacement);
+    assert.equal(f.node('projectName').value, 'Replacement project');
+});
+
+test('unsupported native prompts fall back to accessible input and create a real project file', async () => {
+    const f = await fixture({denyDialogs: true});
+    f.node('newFile').focus();
+    const creating = f.click('newFile');
+    await Promise.resolve();
+    assert.equal(f.node('workspaceDialog').hidden, false);
+    assert.equal(f.document.activeElement, f.node('workspaceDialogInput'));
+    assert.equal(f.node('workspaceDialogInput').value, 'untitled.tex');
+    assert.equal(f.document.querySelector('.container').getAttribute('inert'), '');
+    f.node('workspaceDialogInput').value = 'sections/browser.tex';
+    const entered = await f.emit(f.node('workspaceDialog'), 'keydown', {key: 'Enter', target: f.node('workspaceDialogInput')});
+    await creating;
+    assert.equal(entered.defaultPrevented, true);
+    assert.equal(entered.propagationStopped, true);
+    assert.equal(f.app.model.activePath, 'sections/browser.tex');
+    assert.equal(f.node('workspaceDialog').hidden, true);
+    assert.equal(f.document.querySelector('.container').getAttribute('inert'), null);
+    assert.equal(f.document.activeElement, f.node('newFile'));
+    assert.ok(JSON.parse(f.storage.get('visuallatex_workspace_v1')).files.some(file => file.path === 'sections/browser.tex'));
+});
+
+test('fallback prompts preserve source selection and reference commands through confirmation and cancellation', async () => {
+    const f = await fixture({denyDialogs: true});
+    await f.input('sourceArea', 'before after');
+    f.node('sourceArea').setSelectionRange(7, 7);
+    const inserting = f.click('btnInsertCitation');
+    await Promise.resolve();
+    f.node('workspaceDialogInput').value = 'browser2026';
+    await f.click('workspaceDialogAccept');
+    await inserting;
+    assert.equal(f.app.model.get().text, String.raw`before \cite{browser2026}after`);
+    const original = f.app.model.serialize();
+    const renaming = f.click('renameFile');
+    await Promise.resolve();
+    f.node('workspaceDialogInput').value = 'discarded.tex';
+    await f.emit(f.node('workspaceDialog'), 'keydown', {key: 'Escape'});
+    await renaming;
+    assert.equal(f.app.model.serialize(), original);
+});
+
+test('fallback confirmations require an explicit answer before destructive workspace changes', async () => {
+    const f = await fixture({denyDialogs: true});
+    const original = f.app.model.serialize();
+    const cancelling = f.click('deleteFile');
+    await Promise.resolve();
+    assert.equal(f.node('workspaceDialogInput').hidden, true);
+    assert.equal(f.document.activeElement, f.node('workspaceDialogCancel'));
+    assert.equal(f.app.model.serialize(), original);
+    await f.click('workspaceDialogCancel');
+    await cancelling;
+    assert.equal(f.app.model.serialize(), original);
+    const deleting = f.click('deleteFile');
+    await Promise.resolve();
+    await f.click('workspaceDialogAccept');
+    await deleting;
+    assert.equal(f.app.model.get('main.tex'), null);
+    assert.equal(f.node('workspaceDialog').hidden, true);
+});
+
+test('fallback dialog escapes text, traps focus, ignores IME Enter and cleans up between queued prompts', async () => {
+    const f = await fixture({denyDialogs: true});
+    const first = f.context.workspacePrompt('<img src=x onerror=alert(1)>', '<script>input</script>');
+    const second = f.context.workspaceConfirm('Second answer');
+    await Promise.resolve();
+    assert.equal(f.node('workspaceDialogMessage').textContent, '<img src=x onerror=alert(1)>');
+    assert.equal(f.node('workspaceDialogMessage').querySelector('img'), null);
+    assert.equal(f.node('workspaceDialogInput').value, '<script>input</script>');
+    await f.emit(f.node('workspaceDialog'), 'keydown', {key: 'Enter', target: f.node('workspaceDialogInput'), isComposing: true});
+    assert.equal(f.node('workspaceDialog').hidden, false);
+    await f.emit(f.node('workspaceDialog'), 'keydown', {key: 'Tab', shiftKey: true});
+    assert.equal(f.document.activeElement, f.node('workspaceDialogAccept'));
+    await f.emit(f.node('workspaceDialog'), 'keydown', {key: 'Tab'});
+    assert.equal(f.document.activeElement, f.node('workspaceDialogInput'));
+    await f.click('workspaceDialogCancel');
+    assert.equal(await first, null);
+    await Promise.resolve();
+    assert.equal(f.node('workspaceDialogMessage').textContent, 'Second answer');
+    assert.equal(f.node('workspaceDialogAccept')._events.get('click').length, 1);
+    await f.click('workspaceDialogAccept');
+    assert.equal(await second, true);
+    assert.equal(f.node('workspaceDialogAccept')._events.get('click').length, 0);
+});
+
+test('visual image insertion gathers all fallback answers and stops cleanly on cancellation', async () => {
+    const f = await fixture({denyDialogs: true});
+    await f.click('modeVisual');
+    const images = [];
+    f.context.insertImage = image => images.push(image);
+    const inserting = f.click('btnImage');
+    await new Promise(setImmediate);
+    for (const [label, value] of [['图片路径', 'figures/chart.png'], ['图片标题', '<b>Caption</b>'], ['图片标签', 'fig:browser']]) {
+        assert.equal(f.node('workspaceDialog').hidden, false);
+        assert.ok(f.node('workspaceDialogMessage').textContent.includes(label));
+        f.node('workspaceDialogInput').value = value;
+        await f.click('workspaceDialogAccept');
+        await new Promise(setImmediate);
+    }
+    await inserting;
+    assert.equal(images.length, 1);
+    assert.deepEqual({...images[0]}, {imagePath: 'figures/chart.png', caption: '<b>Caption</b>', label: 'fig:browser'});
+    const cancelling = f.click('btnImage');
+    await new Promise(setImmediate);
+    f.node('workspaceDialogInput').value = 'ignored.png';
+    await f.click('workspaceDialogAccept');
+    await new Promise(setImmediate);
+    await f.click('workspaceDialogCancel');
+    await cancelling;
+    assert.equal(images.length, 1);
+    assert.equal(f.node('workspaceDialog').hidden, true);
 });
 
 test('source and visual mode buttons synchronize edits through actual handlers', async () => {

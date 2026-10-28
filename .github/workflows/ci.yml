@@ -17,7 +17,7 @@ jobs:
 
       - name: JS 语法检查
         run: |
-          for file in main.js workspace.js project-model.js project-archive.js preview.js compiler.mjs server.mjs; do
+          for file in main.js workspace.js project-model.js project-archive.js preview.js compiler.mjs pdf-preview.mjs server.mjs; do
             node --check "$file"
           done
 

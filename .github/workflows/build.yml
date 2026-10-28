@@ -20,7 +20,7 @@ jobs:
       - name: JS 语法检查
         shell: pwsh
         run: |
-          foreach ($file in @('main.js', 'workspace.js', 'project-model.js', 'project-archive.js', 'preview.js', 'compiler.mjs', 'server.mjs')) {
+          foreach ($file in @('main.js', 'workspace.js', 'project-model.js', 'project-archive.js', 'preview.js', 'compiler.mjs', 'pdf-preview.mjs', 'server.mjs')) {
             node --check $file
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
@@ -38,7 +38,7 @@ jobs:
           $tag = $env:GITHUB_REF_NAME
           $name = "VisualLaTeX-$tag"
           New-Item -ItemType Directory -Path $name -Force | Out-Null
-          Copy-Item index.html, style.css, workspace.css, preview.css, main.js, workspace.js, project-model.js, project-archive.js, preview.js, compiler.mjs, server.mjs, start.ps1, setup-windows.ps1, LICENSE, README.md, README.en.md -Destination $name
+          Copy-Item index.html, style.css, workspace.css, preview.css, main.js, workspace.js, project-model.js, project-archive.js, preview.js, compiler.mjs, pdf-preview.mjs, server.mjs, start.ps1, setup-windows.ps1, LICENSE, README.md, README.en.md -Destination $name
           Copy-Item screenshots -Destination $name -Recurse
           Copy-Item tests -Destination $name -Recurse
           Compress-Archive -Path $name -DestinationPath "$name.zip"

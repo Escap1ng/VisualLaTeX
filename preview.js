@@ -44,6 +44,10 @@
             this.jobId = null;
             this.abort = null;
             this.disposed = false;
+            this.preview = {state: 'empty', message: '', url: null, key: null, targetKey: null, page: 0, pageCount: 0, maxPages: 100};
+            this.previewGeneration = 0;
+            this.previewAbort = null;
+            this.previewTask = Promise.resolve(false);
         }
         get busy() { return this.phase === 'running'; }
         emit() { if (!this.disposed) this.onChange(this); }
@@ -86,7 +90,7 @@
         fresh(request) { return Boolean(this.result && this.result.key === requestKey(request)); }
         async deleteJob(id) {
             if (!id || !this.token) return;
-            try { await this.fetch('/api/jobs/' + encodeURIComponent(id), {method: 'DELETE', headers: this.headers(), credentials: 'same-origin'}); }
+            try { await this.fetch('/api/jobs/' + encodeURIComponent(id), {method: 'DELETE', headers: this.headers(), credentials: 'same-origin', keepalive: true}); }
             catch (_) { /* Server timeout/cleanup still bounds an unreachable job. */ }
         }
         async cancel() {
@@ -95,6 +99,7 @@
             this.abort?.abort();
             this.abort = null;
             this.jobId = null;
+            this.stopPreview();
             if (this.busy) { this.phase = 'cancelled'; this.message = '已取消本次编译。'; }
             this.emit();
             await this.deleteJob(id);
@@ -103,9 +108,92 @@
             this.cancel();
             if (this.result) this.urls.revokeObjectURL(this.result.url);
             this.result = null;
+            this.releasePreview();
             this.stale = false;
             this.log = '';
             this.emit();
+        }
+        stopPreview() {
+            this.previewGeneration++;
+            this.previewAbort?.abort();
+            this.previewAbort = null;
+            if (this.preview.state === 'loading') {
+                this.preview.state = this.preview.url ? 'ready' : 'empty';
+                this.preview.message = this.preview.url ? '' : '页面预览已暂停，可重新编译或导出 PDF。';
+            }
+        }
+        releasePreview() {
+            this.stopPreview();
+            if (this.preview.url) this.urls.revokeObjectURL(this.preview.url);
+            this.preview = {state: 'empty', message: '', url: null, key: null, targetKey: null, page: 0, pageCount: 0, maxPages: 100};
+        }
+        previewSession(result) {
+            this.stopPreview();
+            const generation = this.previewGeneration;
+            const abort = new AbortController();
+            this.previewAbort = abort;
+            return {abort, current: () => !this.disposed && this.result === result && generation === this.previewGeneration};
+        }
+        async previewResponse(url, signal) {
+            for (let attempt = 0; ; attempt++) {
+                const response = await this.fetch(url, {headers: this.headers(), credentials: 'same-origin', cache: 'no-store', signal});
+                if (response.ok) return response;
+                let body;
+                try { body = await response.json(); } catch (_) { body = {}; }
+                if (response.status === 409 && body.code === 'PREVIEW_BUSY' && attempt < 2) {
+                    await this.sleep(400, signal); continue;
+                }
+                throw new Error(body.error || '页面预览暂时不可用；仍可导出 PDF。');
+            }
+        }
+        async loadPreview(result = this.result) {
+            if (!result?.jobId || this.disposed) return false;
+            const session = this.previewSession(result);
+            Object.assign(this.preview, {state: 'loading', message: 'PDF 已生成，正在准备页面预览…', targetKey: result.key, pageCount: 0});
+            this.emit();
+            try {
+                const response = await this.previewResponse('/api/jobs/' + encodeURIComponent(result.jobId) + '/preview', session.abort.signal);
+                const metadata = await response.json();
+                if (!session.current()) return false;
+                if (!metadata.available) {
+                    this.preview.state = 'unavailable';
+                    this.preview.message = (metadata.reason || '未安装 Ghostscript，无法生成页面图片。') + ' 可使用浏览器原生预览或导出 PDF。';
+                    this.emit(); return false;
+                }
+                if (!Number.isSafeInteger(metadata.pageCount) || metadata.pageCount < 1) throw new Error('无法读取 PDF 页数；仍可导出 PDF。');
+                this.preview.pageCount = metadata.pageCount;
+                this.preview.maxPages = Math.min(100, Number.isSafeInteger(metadata.maxPages) && metadata.maxPages > 0 ? metadata.maxPages : 100);
+                return await this.loadPage(1);
+            } catch (error) {
+                if (!session.current()) return false;
+                this.preview.state = 'failed';
+                this.preview.message = '页面预览失败：' + error.message + ' PDF 仍可导出。';
+                this.emit(); return false;
+            } finally { if (session.current()) this.previewAbort = null; }
+        }
+        async loadPage(page) {
+            const result = this.result;
+            if (!result || this.preview.targetKey !== result.key || !Number.isSafeInteger(page) || page < 1 ||
+                page > Math.min(this.preview.pageCount, this.preview.maxPages) || this.disposed) return false;
+            const session = this.previewSession(result);
+            this.preview.state = 'loading';
+            this.preview.message = '正在加载第 ' + page + ' 页…';
+            this.emit();
+            try {
+                const response = await this.previewResponse('/api/jobs/' + encodeURIComponent(result.jobId) + '/preview/' + page, session.abort.signal);
+                const blob = await response.blob();
+                if (!session.current()) return false;
+                if (!blob.size || (blob.type && !/^image\/png(?:;|$)/i.test(blob.type))) throw new Error('服务未返回有效页面图片。');
+                const url = this.urls.createObjectURL(new Blob([blob], {type: 'image/png'}));
+                if (this.preview.url) this.urls.revokeObjectURL(this.preview.url);
+                Object.assign(this.preview, {state: 'ready', message: '', url, key: result.key, page});
+                this.emit(); return true;
+            } catch (error) {
+                if (!session.current()) return false;
+                this.preview.state = 'failed';
+                this.preview.message = '页面加载失败：' + error.message + ' 可重试或导出 PDF。';
+                this.emit(); return false;
+            } finally { if (session.current()) this.previewAbort = null; }
         }
         async compile() {
             if (this.busy || this.disposed) return false;
@@ -119,6 +207,7 @@
                     : '未找到 Ghostscript。安装后重启本机服务以渲染 PS/EPS。');
             } catch (error) { this.phase = 'failed'; this.message = error.message; this.emit(); return false; }
             const generation = ++this.generation;
+            this.stopPreview();
             const snapshot = requestKey(request);
             const abort = new AbortController();
             this.abort = abort;
@@ -163,11 +252,13 @@
                         if (blob.size === 0) throw new Error('编译器没有生成 PDF 内容。');
                         const url = this.urls.createObjectURL(new Blob([blob], {type: 'application/pdf'}));
                         if (this.result) this.urls.revokeObjectURL(this.result.url);
-                        this.result = {url, key: snapshot, mainPath: request.mainPath, engine: progress.engine || '', size: blob.size};
+                        this.result = {url, key: snapshot, jobId: job.id, mainPath: request.mainPath, engine: progress.engine || '', size: blob.size};
                         this.stale = false;
                         this.phase = 'succeeded';
                         this.message = request.mainPath + ' · PDF 已更新';
-                        this.emit(); return true;
+                        this.emit();
+                        this.previewTask = this.loadPreview(this.result);
+                        return true;
                     }
                     if (progress.state !== 'running') throw new Error('无法识别编译任务状态。');
                     if (Date.now() - started > this.maxWait) throw new Error('编译等待超时，请检查日志或重试。');
@@ -204,14 +295,17 @@
             this.cancel();
             if (this.result) this.urls.revokeObjectURL(this.result.url);
             this.result = null;
+            this.releasePreview();
         }
     }
 
     function initCompilation(app) {
         const $ = id => document.getElementById(id);
         let lastModel = app.model;
+        let lastMainPath = app.model.mainPath;
         let targetList = '';
         let shownUrl = null;
+        let shownPageUrl = null;
         const preview = $('pdfPreviewPane');
         function showPreview(show = true) {
             preview.hidden = !show;
@@ -221,7 +315,8 @@
         function targets() {
             const files = app.model.list().filter(kindForFile);
             const signature = JSON.stringify(files.map(file => file.path));
-            if (signature !== targetList || app.model !== lastModel) {
+            const mainChanged = app.model.mainPath !== lastMainPath;
+            if (signature !== targetList || app.model !== lastModel || mainChanged) {
                 const old = app.model === lastModel ? $('compileTarget').value : null;
                 $('compileTarget').replaceChildren();
                 for (const file of files) {
@@ -229,14 +324,17 @@
                     option.value = file.path; option.textContent = file.path;
                     $('compileTarget').appendChild(option);
                 }
-                $('compileTarget').value = files.some(file => file.path === old) ? old
+                $('compileTarget').value = mainChanged && files.some(file => file.path === app.model.mainPath) ? app.model.mainPath
+                    : files.some(file => file.path === old) ? old
                     : files.some(file => file.path === app.model.mainPath) ? app.model.mainPath : files[0]?.path || '';
                 targetList = signature;
+                lastMainPath = app.model.mainPath;
             }
         }
         const controller = new CompilationController({
             getRequest() {
                 app.sync();
+                targets();
                 const mainPath = $('compileTarget').value;
                 const file = app.model.get(mainPath);
                 return {project: JSON.parse(app.model.serialize()), kind: kindForFile(file), mainPath};
@@ -263,8 +361,30 @@
             $('previewStale').hidden = !controller.stale;
             $('previewStale').textContent = '当前显示上一次结果；请重新编译以反映最新源码。';
             $('pdfEmpty').hidden = Boolean(controller.result);
-            $('pdfFrame').hidden = !controller.result;
+            const page = controller.preview;
+            const showingImage = Boolean(page.url && controller.result && (page.key === controller.result.key || page.state === 'loading'));
+            $('pdfPageView').hidden = !showingImage;
+            $('pdfFrame').hidden = !controller.result || showingImage || page.state === 'loading';
+            $('pagePreviewStatus').hidden = !controller.result || !page.message;
+            $('pagePreviewStatus').textContent = page.message;
+            const knownPages = Boolean(controller.result && page.targetKey === controller.result.key && page.pageCount);
+            $('previewPageControls').hidden = !knownPages;
+            const currentPage = page.key === controller.result?.key ? page.page : 0;
+            const limit = Math.min(page.pageCount, page.maxPages);
+            $('previewPageNumber').textContent = (currentPage || '—') + ' / ' + page.pageCount + (page.pageCount > page.maxPages ? '（预览前 ' + page.maxPages + ' 页）' : '');
+            $('btnPreviousPage').disabled = page.state === 'loading' || currentPage <= 1;
+            $('btnNextPage').disabled = page.state === 'loading' || !currentPage || currentPage >= limit;
+            $('btnRetryPage').hidden = !controller.result || !['failed', 'unavailable', 'empty'].includes(page.state);
+            $('previewStale').hidden = !controller.stale && !(showingImage && page.key !== controller.result.key);
+            $('previewStale').textContent = showingImage && page.key !== controller.result.key
+                ? '当前仍显示上一次编译的页面，正在加载新结果。' : '当前显示上一次结果；请重新编译以反映最新源码。';
             $('pdfOpen').hidden = !controller.result;
+            if (page.url !== shownPageUrl) {
+                shownPageUrl = page.url;
+                if (shownPageUrl) $('pdfPageImage').src = shownPageUrl;
+                else $('pdfPageImage').removeAttribute('src');
+            }
+            $('pdfPageImage').alt = 'PDF 第 ' + (page.page || 1) + ' 页';
             if (controller.result?.url !== shownUrl) {
                 shownUrl = controller.result?.url || null;
                 if (shownUrl) { $('pdfFrame').src = shownUrl; $('pdfOpen').href = shownUrl; }
@@ -283,18 +403,40 @@
             render();
         };
         $('compileTarget').addEventListener('change', () => { controller.markChanged(); render(); });
+        $('setMainFile').addEventListener('click', () => {
+            targets();
+            // An explicit "set main file" action also wins when this file was
+            // already main but the preview dropdown was manually set elsewhere.
+            if (kindForFile(app.model.get(app.model.mainPath))) $('compileTarget').value = app.model.mainPath;
+            controller.markChanged(); render();
+        });
         $('btnTogglePreview').addEventListener('click', () => showPreview(preview.hidden));
         $('btnClosePreview').addEventListener('click', () => showPreview(false));
         $('btnCompile').addEventListener('click', () => { showPreview(); controller.compile(); });
         $('btnCancelCompile').addEventListener('click', () => controller.cancel());
         $('btnExportPdf').addEventListener('click', () => { showPreview(); controller.exportPdf(); });
         $('btnCompilerRetry').addEventListener('click', () => controller.connect());
+        $('btnPreviousPage').addEventListener('click', () => { controller.previewTask = controller.loadPage(controller.preview.page - 1); });
+        $('btnNextPage').addEventListener('click', () => { controller.previewTask = controller.loadPage(controller.preview.page + 1); });
+        $('btnRetryPage').addEventListener('click', () => { controller.previewTask = controller.loadPreview(); });
         document.addEventListener('keydown', event => {
             if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
                 event.preventDefault(); showPreview(); controller.compile();
             }
         });
-        window.addEventListener('pagehide', () => controller.destroy());
+        window.addEventListener('pagehide', event => {
+            if (event.persisted) controller.cancel();
+            else controller.destroy();
+        });
+        window.addEventListener('pageshow', event => {
+            if (!event.persisted) return;
+            targets(); controller.markChanged();
+            controller.connect().then(connected => {
+                if (connected && controller.result && (!controller.preview.url || controller.preview.key !== controller.result.key)) {
+                    controller.previewTask = controller.loadPreview();
+                }
+            });
+        });
         app.compilation = controller;
         render();
         controller.connect();

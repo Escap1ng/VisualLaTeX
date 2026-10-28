@@ -129,6 +129,26 @@ test('an external selection is never deleted or used for insertion', () => {
     assert.equal(f.ids.editorArea.childNodes[0].tagName, 'IMG');
 });
 
+test('image parameters from an asynchronous dialog restore the saved editor selection without native prompts', () => {
+    const f = fixture();
+    const original = new f.Element('p');
+    original.textContent = 'Original text';
+    f.ids.editorArea.appendChild(original);
+    f.selection.addRange(new f.Range(f.ids.editorArea, 0));
+    f.context.saveEditorSelection();
+    f.selection.removeAllRanges();
+    const outside = new f.Element('input');
+    const externalRange = new f.Range(outside);
+    f.selection.addRange(externalRange);
+    f.context.insertImage({imagePath: 'figure.png', caption: '<b>Caption</b>', label: 'fig:async'});
+    assert.equal(f.calls.prompts, 0);
+    assert.equal(f.calls.saves, 1);
+    assert.equal(externalRange.deleted, false);
+    assert.equal(f.ids.editorArea.childNodes[0].tagName, 'IMG');
+    assert.equal(f.ids.editorArea.childNodes[0].getAttribute('data-caption'), '<b>Caption</b>');
+    assert.ok(f.ids.editorArea.childNodes.includes(original));
+});
+
 test('cancelling the image path immediately stops the interaction', () => {
     const f = fixture();
     f.prompts.push(null);

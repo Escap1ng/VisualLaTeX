@@ -122,3 +122,83 @@ test('expired results are removed and invalid engine output is rejected', async 
     const bad = await (await invalid.compile()).json();
     assert.equal((await invalid.completed(bad.id)).code, 'INVALID_PDF');
 });
+
+test('authenticated preview metadata and PNG pages are cached without delaying PDF downloads', async t => {
+    let metadataCalls = 0;
+    const pages = [];
+    const f = await fixture(t, {
+        previewInfo: async () => { metadataCalls++; return {available: true, pageCount: 103, maxPages: 100, width: 1200, height: 1600}; },
+        previewRenderer: async (_, page) => { pages.push(page); return Buffer.from('PNG page ' + page); }
+    });
+    const {id} = await (await f.compile()).json(); await f.completed(id);
+    const route = '/api/jobs/' + id + '/preview';
+    assert.equal((await fetch(f.url + route)).status, 403);
+    const info = await (await f.call(route)).json();
+    assert.equal(info.pageCount, 103);
+    for (const page of [1, 1, 2, 1]) {
+        const response = await f.call(route + '/' + page);
+        assert.equal(response.headers.get('content-type'), 'image/png');
+        assert.equal(response.headers.get('x-preview-page-count'), '103');
+        assert.equal(await response.text(), 'PNG page ' + page);
+    }
+    assert.equal(metadataCalls, 1);
+    assert.deepEqual(pages, [1, 2, 1], 'only the current page is cached');
+    assert.equal((await f.call(route + '/101')).status, 400);
+    assert.equal((await f.call(route + '/0')).status, 400);
+    assert.equal((await f.call('/api/jobs/' + id + '/pdf')).status, 200);
+});
+
+test('missing preview engine keeps the complete PDF downloadable', async t => {
+    const f = await fixture(t, {previewInfo: async () => ({available: false, reason: 'Ghostscript unavailable'})});
+    const {id} = await (await f.compile()).json(); await f.completed(id);
+    const route = '/api/jobs/' + id;
+    assert.equal((await (await f.call(route + '/preview')).json()).available, false);
+    assert.equal((await f.call(route + '/preview/1')).status, 503);
+    assert.deepEqual(Buffer.from(await (await f.call(route + '/pdf')).arrayBuffer()), PDF);
+});
+
+test('only one page renderer runs, while cancellation leaves the successful PDF intact', async t => {
+    let started;
+    const rendering = new Promise(resolve => { started = resolve; });
+    const f = await fixture(t, {
+        previewInfo: async () => ({available: true, pageCount: 2, maxPages: 100}),
+        previewRenderer: (_, __, {signal}) => new Promise((_, reject) => {
+            signal.addEventListener('abort', () => reject(Object.assign(new Error('cancelled'), {code: 'PREVIEW_CANCELLED'})), {once: true});
+            started();
+        })
+    });
+    const {id} = await (await f.compile()).json(); await f.completed(id);
+    const route = '/api/jobs/' + id;
+    await f.call(route + '/preview');
+    const pending = f.call(route + '/preview/1'); await rendering;
+    assert.equal((await f.call(route + '/preview/2')).status, 409);
+    assert.equal((await f.call(route + '/pdf')).status, 200);
+    await f.call(route, {method: 'DELETE'});
+    assert.equal((await (await pending).json()).code, 'PREVIEW_CANCELLED');
+    assert.equal((await f.completed(id)).state, 'succeeded');
+});
+
+test('expired jobs and server shutdown cancel active preview renderers', async t => {
+    for (const mode of ['expire', 'close']) {
+        let clock = 1;
+        let started;
+        let aborted = false;
+        const rendering = new Promise(resolve => { started = resolve; });
+        const f = await fixture(t, {now: () => clock, jobTTL: 10,
+            previewInfo: async () => ({available: true, pageCount: 1, maxPages: 100}),
+            previewRenderer: (_, __, {signal}) => new Promise((_, reject) => {
+                signal.addEventListener('abort', () => { aborted = true; reject(new Error('cancelled')); }, {once: true});
+                started();
+            })
+        });
+        const {id} = await (await f.compile()).json(); await f.completed(id);
+        const route = '/api/jobs/' + id;
+        const pending = f.call(route + '/preview/1'); await rendering;
+        if (mode === 'expire') {
+            clock = 20;
+            assert.equal((await f.call(route)).status, 404);
+        } else f.server.close();
+        await pending;
+        assert.equal(aborted, true, mode);
+    }
+});

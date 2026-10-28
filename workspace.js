@@ -1,6 +1,74 @@
 /* Source-first LaTeX / PostScript workspace. Classic script: runs offline without a build. */
 const WORKSPACE_KEY = 'visuallatex_workspace_v1';
 
+// Embedded browsers may throw instead of showing native JavaScript dialogs.
+// Queue the fallback so every request receives its own explicit answer.
+let workspaceDialogQueue = Promise.resolve();
+function workspaceDialog(kind, message, defaultValue = '') {
+    try {
+        const native = globalThis[kind];
+        if (typeof native === 'function') {
+            const answer = native.call(globalThis, message, defaultValue);
+            if (kind === 'prompt' ? answer === null || typeof answer === 'string' : typeof answer === 'boolean') {
+                return Promise.resolve(answer);
+            }
+        }
+    } catch (_) { /* Use the accessible in-page dialog below. */ }
+    const request = workspaceDialogQueue.then(() => new Promise(resolve => {
+        const $ = id => document.getElementById(id);
+        const overlay = $('workspaceDialog');
+        const input = $('workspaceDialogInput');
+        const accept = $('workspaceDialogAccept');
+        const cancel = $('workspaceDialogCancel');
+        const previousFocus = document.activeElement;
+        const background = Array.from(document.body.childNodes).filter(node => node.nodeType === 1 && node !== overlay);
+        const wasInert = background.map(node => node.getAttribute('inert') !== null);
+        const asking = kind === 'prompt';
+        $('workspaceDialogTitle').textContent = asking ? '输入内容' : '确认操作';
+        $('workspaceDialogMessage').textContent = message;
+        input.value = defaultValue;
+        input.hidden = !asking;
+        overlay.hidden = false;
+        background.forEach(node => node.setAttribute('inert', ''));
+        let finished = false;
+        function finish(answer) {
+            if (finished) return;
+            finished = true;
+            overlay.hidden = true;
+            accept.removeEventListener('click', approve);
+            cancel.removeEventListener('click', dismiss);
+            overlay.removeEventListener('keydown', keyboard);
+            background.forEach((node, index) => { if (!wasInert[index]) node.removeAttribute('inert'); });
+            previousFocus?.focus();
+            resolve(answer);
+        }
+        function approve() { finish(asking ? input.value : true); }
+        function dismiss() { finish(asking ? null : false); }
+        function keyboard(event) {
+            // Do not let workspace shortcuts act behind an open modal.
+            event.stopPropagation();
+            if (event.key === 'Escape') { event.preventDefault(); dismiss(); }
+            else if (event.key === 'Enter' && event.target === input && !event.isComposing) {
+                event.preventDefault(); approve();
+            } else if (event.key === 'Tab') {
+                const controls = asking ? [input, cancel, accept] : [cancel, accept];
+                const current = controls.indexOf(document.activeElement);
+                const next = (current + (event.shiftKey ? -1 : 1) + controls.length) % controls.length;
+                event.preventDefault(); controls[next].focus();
+            }
+        }
+        accept.addEventListener('click', approve);
+        cancel.addEventListener('click', dismiss);
+        overlay.addEventListener('keydown', keyboard);
+        (asking ? input : cancel).focus();
+        if (asking) input.select();
+    }));
+    workspaceDialogQueue = request.catch(() => {});
+    return request;
+}
+function workspacePrompt(message, defaultValue = '') { return workspaceDialog('prompt', message, defaultValue); }
+function workspaceConfirm(message) { return workspaceDialog('confirm', message); }
+
 function workspaceTemplate(path) {
     if (/\.eps$/i.test(path)) return '%!PS-Adobe-3.0 EPSF-3.0\n%%BoundingBox: 0 0 300 180\n%%EndComments\n/Helvetica findfont 18 scalefont setfont\n30 90 moveto (Hello, EPS) show\n%%EOF\n';
     if (/\.ps$/i.test(path)) return '%!PS-Adobe-3.0\n%%Title: Untitled\n%%Pages: 1\n%%BoundingBox: 0 0 595 842\n%%EndComments\n%%Page: 1 1\n/Helvetica findfont 24 scalefont setfont\n72 720 moveto (Hello, PostScript) show\nshowpage\n%%EOF\n';
@@ -214,6 +282,7 @@ function initWorkspace() {
     app.recoveryBlocked = blocked;
     let saveTimer;
     let panelTimer;
+    let renderedProject = app.model;
     const safely = action => async event => {
         try { await action(event); }
         catch (error) { notify(error.message); }
@@ -290,7 +359,10 @@ function initWorkspace() {
         const language = file ? ProjectModel.language(file.path) : 'text';
         $('currentPath').textContent = file ? file.path : '选择或新建文件';
         $('languageBadge').textContent = file && file.kind === 'binary' ? '资源' : {latex: 'LaTeX', bibtex: 'BibTeX', postscript: 'PostScript', text: '文本'}[language];
-        $('projectName').value = app.model.name;
+        // An editor render can happen before a name input loses focus and emits
+        // change. Preserve its in-progress text and selection until that commit.
+        if (document.activeElement !== $('projectName') || renderedProject !== app.model) $('projectName').value = app.model.name;
+        renderedProject = app.model;
         $('sourcePanel').hidden = !text || app.mode !== 'source';
         $('visualPanel').hidden = !text || app.mode !== 'visual';
         $('assetPanel').hidden = Boolean(text);
@@ -339,15 +411,19 @@ function initWorkspace() {
     bind('btnRedo', () => app.history('redo'));
     bind('btnFiles', () => $('btnFiles').setAttribute('aria-expanded', String(document.body.classList.toggle('files-open'))));
     bind('btnOutline', () => $('btnOutline').setAttribute('aria-expanded', String(document.body.classList.toggle('outline-open'))));
-    bind('btnEncoding', () => {
+    bind('btnEncoding', async () => {
         const file = app.model.get(); if (!file || file.kind !== 'text') return;
-        const encoding = prompt('文件编码：utf-8 或 latin1（转换会影响导出的字节编码）', file.encoding);
+        const encoding = await workspacePrompt('文件编码：utf-8 或 latin1（转换会影响导出的字节编码）', file.encoding);
         if (!encoding || encoding === file.encoding) return;
         if (file.encoding !== 'latin1') app.sync();
         app.model.setEncoding(file.path, encoding.trim().toLowerCase());
         app.changed(false); app.persist();
     });
-    $('projectName').addEventListener('change', safely(() => { app.model.name = $('projectName').value.trim() || '未命名项目'; app.persist(); }));
+    function updateProjectName() { app.model.name = $('projectName').value.trim() || '未命名项目'; }
+    $('projectName').addEventListener('input', safely(() => { updateProjectName(); scheduleSave(); }));
+    $('projectName').addEventListener('change', safely(() => {
+        updateProjectName(); $('projectName').value = app.model.name; app.persist();
+    }));
 
     for (const [id, visual, before, after] of [
         ['btnH1', () => insertHeading(1), '\\section{', '}'], ['btnH2', () => insertHeading(2), '\\subsection{', '}'],
@@ -357,9 +433,18 @@ function initWorkspace() {
         ['btnOl', insertOrderedList, '\\begin{enumerate}\n  \\item ', '\n\\end{enumerate}'],
         ['btnInlineFormula', insertInlineFormula, '$', '$'], ['btnBlockFormula', insertBlockFormula, '\\[\n', '\n\\]']
     ]) bind(id, () => { if (app.mode === 'visual') visual(); else wrap(before, after); });
-    bind('btnImage', () => {
-        if (app.mode === 'visual') { insertImage(); return; }
-        const path = prompt('图片路径（相对于主文件）', 'figures/example.eps');
+    bind('btnImage', async () => {
+        if (app.mode === 'visual') {
+            saveEditorSelection();
+            const imagePath = await workspacePrompt('请输入图片路径（LaTeX 中使用的路径）：', 'example-image.png');
+            if (!imagePath) return;
+            const caption = await workspacePrompt('请输入图片标题：', '图片标题');
+            if (caption === null) return;
+            const label = await workspacePrompt('请输入图片标签（用于引用）：', 'fig:example');
+            if (label !== null) insertImage({imagePath, caption, label});
+            return;
+        }
+        const path = await workspacePrompt('图片路径（相对于主文件）', 'figures/example.eps');
         if (path) sourceEdit('\\includegraphics[width=0.6\\textwidth]{' + path + '}');
     });
     editorArea.addEventListener('dblclick', safely(event => {
@@ -375,19 +460,19 @@ function initWorkspace() {
         notify(offset >= 0 ? '已定位到完整源码，可直接修改该命令。' : '已打开完整源码，可使用查找定位该命令。');
     }));
 
-    function insertReference(kind) {
+    async function insertReference(kind) {
         app.setMode('source');
         const refs = app.model.references();
         const first = kind === 'cite' ? refs.bibliography[0] : refs.labels[0];
-        const key = prompt(kind === 'cite' ? '文献键，可用逗号分隔多个键' : '标签名称', first ? first.key : kind === 'label' ? 'sec:new' : '');
+        const key = await workspacePrompt(kind === 'cite' ? '文献键，可用逗号分隔多个键' : '标签名称', first ? first.key : kind === 'label' ? 'sec:new' : '');
         if (key) sourceEdit('\\' + kind + '{' + key + '}');
     }
     bind('btnInsertCitation', () => insertReference('cite'));
     bind('btnInsertReference', () => insertReference('ref'));
     bind('btnInsertLabel', () => insertReference('label'));
-    bind('btnAddBibEntry', () => {
+    bind('btnAddBibEntry', async () => {
         app.sync();
-        const key = prompt('新文献的 BibTeX 键', 'reference2026');
+        const key = await workspacePrompt('新文献的 BibTeX 键', 'reference2026');
         if (!key) return;
         if (!/^[^\s{},=]+$/.test(key)) throw new Error('文献键不能包含空白、花括号、逗号或等号');
         if (app.model.references().bibliography.some(item => item.key === key)) throw new Error('该文献键已存在');
@@ -399,27 +484,27 @@ function initWorkspace() {
         sourceEdit('\n@article{' + key + ',\n  author = {},\n  title = {},\n  journal = {},\n  year = {}\n}\n', end, end);
     });
 
-    bind('newFile', () => {
+    bind('newFile', async () => {
         app.sync();
-        const path = prompt('文件路径，例如 sections/method.tex、references.bib 或 drawing.ps', 'untitled.tex');
+        const path = await workspacePrompt('文件路径，例如 sections/method.tex、references.bib 或 drawing.ps', 'untitled.tex');
         if (!path) return;
         const file = app.model.add({path, kind: 'text', text: workspaceTemplate(path), encoding: 'utf-8'});
         // add() selects the first file in an empty project. Do not sync the old
         // empty editor into that newly created template.
         app.model.activePath = file.path; app.mode = 'source'; app.show(); app.persist();
     });
-    bind('renameFile', () => {
+    bind('renameFile', async () => {
         app.sync();
         const file = app.model.get(); if (!file) return;
-        const path = prompt('新的文件路径（已有源码中的路径引用不会自动更名）', file.path);
+        const path = await workspacePrompt('新的文件路径（已有源码中的路径引用不会自动更名）', file.path);
         if (path && path !== file.path) { const renamed = app.model.rename(file.path, path); app.switchFile(renamed.path); }
     });
-    bind('deleteFile', () => {
-        const file = app.model.get(); if (!file || !confirm('删除项目文件 ' + file.path + '？请先导出需要保留的内容。')) return;
+    bind('deleteFile', async () => {
+        const file = app.model.get(); if (!file || !await workspaceConfirm('删除项目文件 ' + file.path + '？请先导出需要保留的内容。')) return;
         app.model.remove(file.path); app.mode = 'source'; app.show(); app.persist();
     });
     bind('setMainFile', () => { app.sync(); app.model.mainPath = app.model.activePath; app.persist(); panels(); notify('已设为项目主文件'); });
-    bind('btnNewProject', () => { if (confirm('新建项目会替换本机当前草稿，请先导出备份。继续？')) app.replaceProject(defaultWorkspace()); });
+    bind('btnNewProject', async () => { if (await workspaceConfirm('新建项目会替换本机当前草稿，请先导出备份。继续？')) app.replaceProject(defaultWorkspace()); });
 
     function download(bytes, name, type = 'application/octet-stream') {
         const url = URL.createObjectURL(new Blob([bytes], {type}));
@@ -483,7 +568,7 @@ function initWorkspace() {
         const main = entries.find(file => file.kind === 'text' && file.path === 'main.tex') || entries.find(file => file.kind === 'text' && /\.(tex|ps|eps)$/i.test(file.path)) || entries.find(file => file.kind === 'text');
         const first = main || entries[0];
         const candidate = new ProjectModel({name: files[0].webkitRelativePath.split('/')[0], files: entries, activePath: first.path, mainPath: main ? main.path : null});
-        if (confirm('用这个文件夹替换当前项目？请确认已导出需要保留的内容。')) app.replaceProject(candidate);
+        if (await workspaceConfirm('用这个文件夹替换当前项目？请确认已导出需要保留的内容。')) app.replaceProject(candidate);
     }));
     $('importProject').addEventListener('change', safely(async event => {
         const file = event.target.files[0]; if (!file) return;
@@ -505,7 +590,7 @@ function initWorkspace() {
                 activePath: metadata && files.some(item => item.path === metadata.activePath) ? metadata.activePath : first && first.path,
                 mainPath: metadata && files.some(item => item.kind === 'text' && item.path === metadata.mainPath) ? metadata.mainPath : main ? main.path : null});
         }
-        if (confirm('用导入的项目替换当前项目？请确认已导出需要保留的内容。')) app.replaceProject(candidate);
+        if (await workspaceConfirm('用导入的项目替换当前项目？请确认已导出需要保留的内容。')) app.replaceProject(candidate);
     }));
 
     function literalFindPattern(query) {

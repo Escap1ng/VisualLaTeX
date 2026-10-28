@@ -182,6 +182,14 @@
     .project-actions button { min-height: 32px; font-size: 11px; }
     .workspace-toolbar.toolbar button { min-height: 32px; }
 }
+.workspace-dialog-overlay { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 20px; background: #14273880; }
+.workspace-dialog { width: min(480px, 100%); padding: 24px; border-radius: 12px; background: #fff; color: #203447; box-shadow: 0 20px 70px #10202e40; }
+.workspace-dialog h2 { margin: 0 0 16px; font-size: 18px; }
+.workspace-dialog label { display: block; margin-bottom: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.workspace-dialog input { box-sizing: border-box; width: 100%; min-height: 42px; padding: 9px 11px; border: 1px solid #91a3b1; border-radius: 6px; font: inherit; font-size: 16px; }
+.workspace-dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
+.workspace-dialog-actions button { min-height: 40px; padding: 8px 20px; border: 1px solid #91a3b1; border-radius: 6px; background: #fff; color: inherit; cursor: pointer; }
+#workspaceDialogAccept { background: #245d78; color: #fff; border-color: #245d78; }
 @media (prefers-reduced-motion: reduce) {
     .workspace-app *, .workspace-app *::before, .workspace-app *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
 }

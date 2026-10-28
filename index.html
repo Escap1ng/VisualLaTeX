@@ -165,8 +165,16 @@
                 </div>
                 <p id="compileStatus" class="compile-status" role="status" aria-live="polite">正在检测本机编译服务…</p>
                 <p id="previewStale" class="preview-stale" hidden>当前显示上一次结果；请重新编译以反映最新源码。</p>
+                <div id="previewPageControls" class="preview-page-controls" hidden aria-label="PDF 分页">
+                    <button id="btnPreviousPage" type="button" title="上一页" disabled>上一页</button>
+                    <span id="previewPageNumber" aria-live="polite">— / 0</span>
+                    <button id="btnNextPage" type="button" title="下一页" disabled>下一页</button>
+                </div>
+                <p id="pagePreviewStatus" class="page-preview-status" role="status" aria-live="polite" hidden></p>
+                <button id="btnRetryPage" class="retry-preview" type="button" hidden>重试页面预览</button>
                 <div class="pdf-proof">
                     <div id="pdfEmpty" class="pdf-empty"><strong>查看排版结果</strong>选择 LaTeX、PS 或 EPS 文件后点击「编译预览」。修改源码后可重新编译，也可直接导出最新 PDF。</div>
+                    <div id="pdfPageView" class="pdf-page-view" hidden><img id="pdfPageImage" alt="PDF 页面"></div>
                     <iframe id="pdfFrame" title="编译后的 PDF 文档" hidden></iframe>
                 </div>
                 <a id="pdfOpen" class="pdf-open" target="_blank" rel="noopener" hidden>在新窗口打开 PDF（预览不可用时）</a>
@@ -214,6 +222,18 @@
                     <textarea id="formulaInput" rows="4" spellcheck="false" placeholder="输入 LaTeX 公式，例如 \frac{x}{y} 或 E=mc^2"></textarea>
                     <div class="modal-actions"><button class="btn-insert" id="btnInsertFormula" type="button">插入公式</button></div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="workspaceDialog" class="workspace-dialog-overlay" hidden>
+        <div class="workspace-dialog" role="dialog" aria-modal="true" aria-labelledby="workspaceDialogTitle" aria-describedby="workspaceDialogMessage">
+            <h2 id="workspaceDialogTitle">输入内容</h2>
+            <label id="workspaceDialogMessage" for="workspaceDialogInput"></label>
+            <input id="workspaceDialogInput" type="text" autocomplete="off" spellcheck="false" aria-labelledby="workspaceDialogMessage">
+            <div class="workspace-dialog-actions">
+                <button id="workspaceDialogCancel" type="button">取消</button>
+                <button id="workspaceDialogAccept" type="button">确定</button>
             </div>
         </div>
     </div>

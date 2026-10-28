@@ -230,13 +230,14 @@ function insertBlockFormula() {
 }
 
 // 插入图片
-function insertImage() {
-    saveEditorSelection();
-    const imagePath = prompt('请输入图片路径（LaTeX 中使用的路径）：', 'example-image.png');
+function insertImage(options) {
+    const supplied = options && typeof options.imagePath === 'string';
+    if (!supplied) saveEditorSelection();
+    const imagePath = supplied ? options.imagePath : prompt('请输入图片路径（LaTeX 中使用的路径）：', 'example-image.png');
     if (!imagePath) return;
-    const caption = prompt('请输入图片标题：', '图片标题');
+    const caption = supplied ? options.caption : prompt('请输入图片标题：', '图片标题');
     if (caption === null) return;
-    const label = prompt('请输入图片标签（用于引用）：', 'fig:example');
+    const label = supplied ? options.label : prompt('请输入图片标签（用于引用）：', 'fig:example');
     if (label === null) return;
 
     const img = document.createElement('img');

@@ -4,6 +4,7 @@ import {readFile} from 'node:fs/promises';
 import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {compileProject, discoverEngines} from './compiler.mjs';
+import {getPdfPreviewInfo, renderPdfPreviewPage} from './pdf-preview.mjs';
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
 const MAX_BODY_BYTES = 80 * 1024 * 1024;
@@ -52,12 +53,14 @@ function readJson(req, limit) {
 export function createWorkspaceServer({
     compiler = compileProject, enginesProvider = discoverEngines, root = ROOT,
     token = randomBytes(32).toString('hex'), maxBodyBytes = MAX_BODY_BYTES,
-    jobTTL = 10 * 60_000, maxJobs = 8, now = Date.now
+    jobTTL = 10 * 60_000, maxJobs = 8, now = Date.now,
+    previewInfo = getPdfPreviewInfo, previewRenderer = renderPdfPreviewPage
 } = {}) {
     const jobs = new Map();
     const tokenBytes = Buffer.from(token);
     let enginePromise;
     let enginesAt = 0;
+    let previewActive = null;
     const getEngines = () => {
         if (!enginePromise || now() - enginesAt > 30_000) {
             enginesAt = now();
@@ -65,8 +68,29 @@ export function createWorkspaceServer({
         }
         return enginePromise;
     };
+    function discard(job) {
+        if (previewActive?.job === job) previewActive.controller.abort();
+        jobs.delete(job.id);
+    }
     function sweep() {
-        for (const [id, job] of jobs) if (!job.active && now() - job.finishedAt >= jobTTL) jobs.delete(id);
+        for (const job of jobs.values()) if (!job.active && now() - job.finishedAt >= jobTTL) discard(job);
+    }
+    async function previewOperation(job, res, operation) {
+        if (previewActive) throw error('已有页面预览正在生成，请稍后重试。', 409, 'PREVIEW_BUSY');
+        const active = {job, controller: new AbortController()};
+        previewActive = active;
+        const disconnected = () => { if (!res.writableEnded) active.controller.abort(); };
+        res.once('close', disconnected);
+        try {
+            const engines = await getEngines();
+            if (active.controller.signal.aborted) throw error('预览已取消。', 409, 'PREVIEW_CANCELLED');
+            const value = await operation({engine: engines.postscript, signal: active.controller.signal});
+            if (active.controller.signal.aborted || jobs.get(job.id) !== job) throw error('编译结果已过期，请重新编译。', 404, 'JOB_NOT_FOUND');
+            return value;
+        } finally {
+            res.removeListener('close', disconnected);
+            if (previewActive === active) previewActive = null;
+        }
     }
     function authorised(req) {
         const supplied = Buffer.from(String(req.headers['x-visuallatex-token'] || ''));
@@ -112,7 +136,7 @@ export function createWorkspaceServer({
                     while (jobs.size >= maxJobs) {
                         const oldest = [...jobs.values()].find(job => !job.active);
                         if (!oldest) throw error('编译服务繁忙。', 409, 'COMPILER_BUSY');
-                        jobs.delete(oldest.id);
+                        discard(oldest);
                     }
                     const job = {id: randomUUID(), state: 'running', active: true, log: '', mainPath: payload.mainPath,
                         controller: new AbortController(), startedAt: now(), finishedAt: null};
@@ -139,10 +163,11 @@ export function createWorkspaceServer({
                     }).finally(() => { job.active = false; job.finishedAt = now(); });
                     return;
                 }
-                const match = /^\/api\/jobs\/([0-9a-f-]+)(\/pdf)?$/.exec(path);
+                const match = /^\/api\/jobs\/([0-9a-f-]+)(\/pdf|\/preview(?:\/([0-9]+))?)?$/.exec(path);
                 const job = match && jobs.get(match[1]);
                 if (!job) throw error('编译结果不存在或已过期，请重新编译。', 404, 'JOB_NOT_FOUND');
                 if (req.method === 'DELETE' && !match[2]) {
+                    if (previewActive?.job === job) previewActive.controller.abort();
                     if (job.active) {
                         job.state = 'cancelled'; job.controller.abort();
                     }
@@ -150,11 +175,28 @@ export function createWorkspaceServer({
                     return;
                 }
                 if (req.method !== 'GET') throw error('不支持的操作。', 405);
-                if (match[2]) {
+                if (match[2] === '/pdf') {
                     if (job.state !== 'succeeded') throw error('PDF 尚未生成。', 409, 'PDF_NOT_READY');
                     res.writeHead(200, {'Content-Type': 'application/pdf', 'Content-Length': job.pdf.length,
                         'Content-Disposition': 'inline; filename="preview.pdf"'});
                     res.end(job.pdf);
+                } else if (match[2]?.startsWith('/preview')) {
+                    if (job.state !== 'succeeded') throw error('PDF 尚未生成。', 409, 'PDF_NOT_READY');
+                    const info = job.previewInfo || await previewOperation(job, res, options => previewInfo(job.pdf, options));
+                    if (info.available) job.previewInfo = info;
+                    if (!match[3]) { json(200, info); return; }
+                    if (!info.available) throw error(info.reason || '没有可用的预览引擎，仍可下载 PDF。', 503, 'PREVIEW_ENGINE_MISSING');
+                    const page = Number(match[3]);
+                    if (!Number.isSafeInteger(page) || page < 1 || page > Math.min(info.pageCount, info.maxPages)) {
+                        throw error('预览页码超出范围（最多预览前 100 页）。', 400, 'PREVIEW_PAGE_RANGE');
+                    }
+                    const png = job.previewCache?.page === page ? job.previewCache.png
+                        : await previewOperation(job, res, options => previewRenderer(job.pdf, page, {...options, pageCount: info.pageCount}));
+                    job.previewCache = {page, png};
+                    if (res.destroyed || res.writableEnded) return;
+                    res.writeHead(200, {'Content-Type': 'image/png', 'Content-Length': png.length,
+                        'X-Preview-Page': String(page), 'X-Preview-Page-Count': String(info.pageCount)});
+                    res.end(png);
                 } else json(200, {id: job.id, state: job.state, log: job.log, error: job.error, code: job.code,
                     engine: job.engine, mainPath: job.mainPath,
                     ...(job.state === 'succeeded' ? {pdfUrl: '/api/jobs/' + job.id + '/pdf'} : {})});
@@ -175,6 +217,12 @@ export function createWorkspaceServer({
     server.headersTimeout = 10_000;
     const timer = setInterval(sweep, 30_000);
     timer.unref();
+    const close = server.close.bind(server);
+    server.close = callback => {
+        previewActive?.controller.abort();
+        for (const job of jobs.values()) if (job.active) { job.state = 'cancelled'; job.controller.abort(); }
+        return close(callback);
+    };
     server.on('close', () => {
         clearInterval(timer);
         for (const job of jobs.values()) if (job.active) { job.state = 'cancelled'; job.controller.abort(); }

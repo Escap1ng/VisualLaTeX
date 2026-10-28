@@ -44,7 +44,9 @@ Tectonic downloads missing TeX support files on first use and caches them for la
 - Select the complete LaTeX main document or a PS/EPS file, then compile/render with the button or Ctrl/Cmd+Enter.
 - Inspect the generated PDF and export it. Running tasks can be cancelled; errors retain engine logs for diagnosis.
 
-Source changes mark an older PDF as stale. Export recompiles changed content before downloading, while failed compilation keeps the previous preview visibly marked and leaves the source editable. If the browser cannot display embedded PDFs, download the file and open it in a local reader.
+Source changes mark an older PDF as stale. Export recompiles changed content before downloading, while failed compilation keeps the previous preview visibly marked and leaves the source editable. With Ghostscript installed, pages are displayed as images using Previous/Next controls, without requiring a browser PDF plugin. Without Ghostscript, the UI explains the limitation and falls back to native PDF display; the complete PDF remains exportable.
+
+Image preview supports the first 100 pages on a fixed 1200×1600 canvas with each complete page fitted proportionally. This does not change the exported PDF's page dimensions, vector content or page count. Images are generated on demand with a 20-second limit and can be retried after failure. Use the exported PDF to select or copy text.
 
 Direct `file://` pages and GitHub Pages remain editing-only. Browser drafts are isolated by origin: export a ZIP from the old offline page before switching to the local service, then import it there.
 
@@ -99,9 +101,9 @@ node --test
 
 Tests exercise actual functions and UI event handlers, compiler process orchestration, loopback service boundaries, cancellation and stale results. Regular tests use simulated engines and do not need the toolchain. The minimal DOM model does not verify browser layout or actual TeX/PS typesetting. CI checks `main`/`dev`; publishing and deployment wait for checks. GitHub Pages serves only the static editor.
 
-Actual engine validation in this iteration used Tectonic and Ghostscript; the XeLaTeX path has not yet been verified against a real distribution.
+See the [browser acceptance checklist](tests/browser-acceptance.md) for manual end-to-end validation. Actual engine validation in this iteration used Tectonic and Ghostscript; the XeLaTeX path has not yet been verified against a real distribution.
 
-`workspace.js` coordinates editing, `project-model.js` owns canonical source/history/indexes, and `project-archive.js` handles ZIP. `preview.js` manages PDF state and export; `compiler.mjs` and `server.mjs` run the local compilation service. `setup-windows.ps1` and `start.ps1` prepare portable tools and start the service. The original `main.js` remains the visual LaTeX conversion core.
+`workspace.js` coordinates editing, `project-model.js` owns canonical source/history/indexes, and `project-archive.js` handles ZIP. `preview.js` manages PDF state and export; `compiler.mjs` and `server.mjs` run the local compilation service, while `pdf-preview.mjs` renders bounded page images. `setup-windows.ps1` and `start.ps1` prepare portable tools and start the service. The original `main.js` remains the visual LaTeX conversion core.
 
 ## License
 

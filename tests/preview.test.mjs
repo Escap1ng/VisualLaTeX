@@ -29,6 +29,7 @@ function fixture(options = {}) {
         if (url === '/api/compile') return json({id: 'job-' + ++job}, 202);
         if (init.method === 'DELETE') return json({state: 'cancelled'});
         if (url.endsWith('/pdf')) return pdf();
+        if (url.endsWith('/preview')) return json({available: false, reason: 'Ghostscript not configured'});
         if (url.startsWith('/api/jobs/')) return json({state: controls.status, log: controls.log, error: controls.error, engine: 'Tectonic', pdfUrl: url + '/pdf'});
         throw new Error('Unexpected request ' + url);
     };
@@ -255,7 +256,7 @@ test('preview markup has every production control, accessible labels and initial
     assert.doesNotMatch(code, /\.innerHTML\s*=/, 'compiler logs and source names must stay inert text');
 });
 
-test('workspace integration binds target selection, compilation, PDF display and project replacement', async () => {
+async function workspaceFixture(options = {}) {
     const ids = new Map();
     function element(id = '') {
         const events = new Map(), attributes = new Map();
@@ -277,7 +278,7 @@ test('workspace integration binds target selection, compilation, PDF display and
     document.createElement = () => element();
     document.body = element();
     const window = element();
-    const f = fixture({context: {document, window}});
+    const f = fixture({...options, context: {document, window}});
     const project = structuredClone(f.request.project);
     const model = {
         mainPath: project.mainPath,
@@ -289,6 +290,12 @@ test('workspace integration binds target selection, compilation, PDF display and
     const app = {model, sync() { syncs++; }, onChange() { renders++; }};
     const controller = f.context.initCompilation(app);
     while (!controller.token) await new Promise(resolve => setImmediate(resolve));
+    return {...f, ids, window, project, model, app, controller, syncCount: () => syncs, renderCount: () => renders};
+}
+
+test('workspace integration binds target selection, compilation, PDF display and project replacement', async () => {
+    const f = await workspaceFixture();
+    const {ids, window, project, model, app, controller} = f;
     assert.equal(ids.get('compileTarget').value, 'main.tex');
     assert.equal(ids.get('compileTarget').children.length, 2);
     assert.equal(ids.get('btnCompile').disabled, false);
@@ -298,7 +305,7 @@ test('workspace integration binds target selection, compilation, PDF display and
     assert.equal(ids.get('compilerStatus').textContent, 'Ghostscript');
     ids.get('btnCompile').emit('click');
     while (controller.busy) await new Promise(resolve => setImmediate(resolve));
-    assert.ok(syncs > 0);
+    assert.ok(f.syncCount() > 0);
     assert.equal(controller.phase, 'succeeded');
     assert.equal(ids.get('pdfPreviewPane').hidden, false);
     assert.equal(ids.get('pdfFrame').src, 'blob:fixture/1');
@@ -307,13 +314,155 @@ test('workspace integration binds target selection, compilation, PDF display and
     const submitted = JSON.parse(f.calls.find(call => call.url === '/api/compile').init.body);
     assert.equal(submitted.kind, 'postscript');
     assert.equal(submitted.mainPath, 'figure.eps');
+    app.onChange();
+    assert.equal(ids.get('compileTarget').value, 'figure.eps', 'ordinary edits preserve the selected compile target');
+    ids.get('setMainFile').emit('click');
+    assert.equal(ids.get('compileTarget').value, 'main.tex', 'explicitly setting the existing main file wins over a manual preview target');
+    model.mainPath = 'figure.eps';
+    ids.get('setMainFile').emit('click');
+    model.mainPath = 'main.tex';
+    ids.get('setMainFile').emit('click');
+    assert.equal(ids.get('compileTarget').value, 'main.tex', 'setting a different main file updates the compile target immediately');
+    ids.get('compileTarget').value = 'figure.eps';
+    window.emit('pagehide', {persisted: true});
+    assert.equal(controller.disposed, false);
+    assert.equal(controller.result.url, 'blob:fixture/1');
+    window.emit('pageshow', {persisted: true});
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(controller.disposed, false);
+    assert.equal(ids.get('btnCompile').disabled, false);
     project.files[1].base64 = 'changed';
     app.onChange();
-    assert.equal(renders, 1);
+    assert.equal(f.renderCount(), 2);
     assert.equal(ids.get('previewStale').hidden, false);
     app.model = {...model};
     app.onChange();
     assert.equal(controller.result, null);
     assert.equal(ids.get('pdfFrame').hidden, true);
     assert.deepEqual(f.revoked, ['blob:fixture/1']);
+    assert.equal(await controller.compile(), true, 'BFCache restoration keeps the controller able to compile');
+    window.emit('pagehide', {persisted: false});
+    assert.equal(controller.disposed, true);
+});
+
+test('BFCache resumes the new PDF page when a previous image remains during an interrupted render', async () => {
+    const pending = deferred(), started = deferred(), resumed = deferred();
+    let secondPageRequests = 0;
+    const f = await workspaceFixture({route: async url => {
+        if (url.endsWith('/preview')) return json({available: true, pageCount: 1, maxPages: 100});
+        if (url === '/api/jobs/job-1/preview/1') return {ok: true, blob: async () => new Blob(['first'], {type: 'image/png'})};
+        if (url === '/api/jobs/job-2/preview/1') {
+            if (++secondPageRequests === 1) { started.resolve(); return pending.promise; }
+            resumed.resolve();
+            return {ok: true, blob: async () => new Blob(['second'], {type: 'image/png'})};
+        }
+    }});
+    await f.controller.compile(); await f.controller.previewTask;
+    const previousImage = f.controller.preview.url;
+    f.project.files[0].text += '\nUpdated source'; f.app.onChange();
+    await f.controller.compile();
+    await started.promise;
+    const interrupted = f.controller.previewTask;
+    assert.equal(f.controller.preview.url, previousImage);
+    assert.notEqual(f.controller.preview.key, f.controller.result.key);
+    f.window.emit('pagehide', {persisted: true});
+    f.window.emit('pageshow', {persisted: true});
+    await resumed.promise;
+    assert.equal(await f.controller.previewTask, true);
+    assert.equal(f.controller.preview.key, f.controller.result.key);
+    assert.notEqual(f.controller.preview.url, previousImage);
+    assert.equal(f.ids.get('pdfPageView').hidden, false);
+    assert.equal(f.ids.get('pdfFrame').hidden, true);
+    assert.ok(f.revoked.includes(previousImage));
+    const currentImage = f.controller.preview.url;
+    pending.resolve({ok: true, blob: async () => new Blob(['late'], {type: 'image/png'})});
+    assert.equal(await interrupted, false);
+    assert.equal(f.controller.preview.url, currentImage);
+});
+
+test('page images load independently of PDF export and pagination replaces only the image URL', async () => {
+    const imageResponse = deferred(), imageStarted = deferred();
+    const f = fixture({route: async url => {
+        if (url.endsWith('/preview')) return json({available: true, pageCount: 3, maxPages: 100});
+        if (url.endsWith('/preview/1')) { imageStarted.resolve(); return imageResponse.promise; }
+        if (url.endsWith('/preview/2')) return {ok: true, blob: async () => new Blob(['png2'], {type: 'image/png'})};
+    }});
+    await f.controller.connect();
+    assert.equal(await f.controller.compile(), true);
+    await imageStarted.promise;
+    assert.equal(f.controller.preview.state, 'loading');
+    assert.equal(await f.controller.exportPdf(), true, 'PDF download does not wait for image rendering');
+    assert.deepEqual(f.downloads, [{url: 'blob:fixture/1', name: 'main.pdf'}]);
+    imageResponse.resolve({ok: true, blob: async () => new Blob(['png1'], {type: 'image/png'})});
+    assert.equal(await f.controller.previewTask, true);
+    assert.equal(f.controller.preview.url, 'blob:fixture/2');
+    assert.equal(f.controller.preview.page, 1);
+    assert.equal(f.controller.preview.pageCount, 3);
+    assert.equal(await f.controller.loadPage(2), true);
+    assert.equal(f.controller.preview.page, 2);
+    assert.equal(f.controller.preview.url, 'blob:fixture/3');
+    assert.deepEqual(f.revoked, ['blob:fixture/2']);
+    assert.equal(f.controller.result.url, 'blob:fixture/1');
+    for (const call of f.calls.filter(call => call.url.includes('/preview'))) assert.equal(call.init.headers['X-VisualLaTeX-Token'], 'test-token');
+    f.controller.destroy();
+    assert.deepEqual(f.revoked, ['blob:fixture/2', 'blob:fixture/1', 'blob:fixture/3']);
+});
+
+test('missing Ghostscript falls back without invalidating a successful downloadable PDF', async () => {
+    const f = fixture();
+    await f.controller.connect(); await f.controller.compile();
+    assert.equal(await f.controller.previewTask, false);
+    assert.equal(f.controller.phase, 'succeeded');
+    assert.equal(f.controller.preview.state, 'unavailable');
+    assert.match(f.controller.preview.message, /原生预览|导出 PDF/);
+    assert.equal(await f.controller.exportPdf(), true);
+});
+
+test('a delayed page from a previous project cannot create an image after the project is cleared', async () => {
+    const page = deferred(), started = deferred();
+    const f = fixture({route: async url => {
+        if (url.endsWith('/preview')) return json({available: true, pageCount: 1, maxPages: 100});
+        if (url.endsWith('/preview/1')) { started.resolve(); return page.promise; }
+    }});
+    await f.controller.connect(); await f.controller.compile();
+    await started.promise;
+    const rendering = f.controller.previewTask;
+    f.controller.clear();
+    page.resolve({ok: true, blob: async () => new Blob(['late'], {type: 'image/png'})});
+    assert.equal(await rendering, false);
+    assert.equal(f.controller.preview.url, null);
+    assert.equal(f.created.length, 1, 'only the old PDF URL was created');
+    assert.deepEqual(f.revoked, ['blob:fixture/1']);
+});
+
+test('failed recompilation preserves the last page image with stale source status', async () => {
+    const f = fixture({route: async url => {
+        if (url.endsWith('/preview')) return json({available: true, pageCount: 1});
+        if (url.endsWith('/preview/1')) return {ok: true, blob: async () => new Blob(['png'], {type: 'image/png'})};
+    }});
+    await f.controller.connect(); await f.controller.compile(); await f.controller.previewTask;
+    f.request.project.files[0].text += '\\invalid';
+    f.controller.markChanged();
+    f.controls.status = 'failed';
+    assert.equal(await f.controller.compile(), false);
+    assert.equal(f.controller.preview.url, 'blob:fixture/2');
+    assert.equal(f.controller.stale, true);
+    assert.equal(f.controller.result.url, 'blob:fixture/1');
+});
+
+test('busy page rendering retries within a bounded budget and pages above the preview cap are not fetched', async () => {
+    let attempts = 0;
+    const f = fixture({route: async url => {
+        if (url.endsWith('/preview')) return json({available: true, pageCount: 180, maxPages: 100});
+        if (url.endsWith('/preview/1')) {
+            if (++attempts < 3) return json({code: 'PREVIEW_BUSY', error: 'Please retry'}, 409);
+            return {ok: true, blob: async () => new Blob(['png'], {type: 'image/png'})};
+        }
+    }});
+    await f.controller.connect(); await f.controller.compile();
+    assert.equal(await f.controller.previewTask, true);
+    assert.equal(attempts, 3);
+    assert.equal(await f.controller.loadPage(101), false);
+    assert.equal(f.calls.some(call => call.url.endsWith('/preview/101')), false);
+    assert.equal(await f.controller.exportPdf(), true);
 });
