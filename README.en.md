@@ -1,8 +1,12 @@
 # VisualLaTeX Studio
 
-**A LaTeX / PostScript project editor with local compilation, PDF preview and export.**
+**Import a document, edit it visually, then export—with multiple files, PostScript and local PDF compilation.**
 
-This workspace edition extends [Escap1ng/VisualLaTeX](https://github.com/Escap1ng/VisualLaTeX) with full source editing, multiple files, references, bibliography entries, ZIP projects and real compilation. No npm packages or build step are required. Compilation uses Node.js 22+ and a local typesetting toolchain.
+This workspace edition continues [Escap1ng/VisualLaTeX](https://github.com/Escap1ng/VisualLaTeX)'s purpose of visually modifying existing LaTeX documents, adding full source access, multiple files, references, bibliography entries, ZIP projects and real compilation. No npm packages or build step are required. Compilation uses Node.js 22+ and a local typesetting toolchain.
+
+**Complete LaTeX documents open in Visual editing by default.** Edit text and headings directly, use the formatting toolbar, and double-click formulas to edit them. Keep untouched source intact while making changes. The current session remembers the selected editing mode for each file.
+
+Source editing remains available for preambles, macros, references and complex structures. Bibliography files, PostScript, TeX fragments and incomplete documents use source editing without forced visual conversion. PostScript supports source editing and rendering; arbitrary PS graphics cannot yet be modified as visual objects.
 
 ## Start
 
@@ -38,11 +42,11 @@ Tectonic downloads missing TeX support files on first use and caches them for la
 ### Editing and PDF output
 
 - Add individual files, open a project folder, or import a ZIP project.
-- Edit any text file in source mode, including preambles, macros, references and incomplete source.
-- Complete LaTeX documents can switch to the visual editor. Fragments, BibTeX, PostScript and EPS text remain directly editable source.
+- Complete LaTeX documents open in Visual editing: modify text and headings directly, use the formatting toolbar, or double-click formulas.
+- Switch to Source editing for preambles, macros, references and complex commands, then return to visual editing. Fragments, BibTeX, PostScript and EPS text remain directly editable source.
 - Download one file or export the entire project as ZIP, including binary resources and changes in inactive files.
 - Select the complete LaTeX main document or a PS/EPS file, then compile/render with the button or Ctrl/Cmd+Enter.
-- Inspect the generated PDF and export it. Running tasks can be cancelled; errors retain engine logs for diagnosis.
+- Inspect the generated PDF and export it. The PDF pane displays the result; modify content in the editor. Running tasks can be cancelled; errors retain engine logs for diagnosis.
 
 Source changes mark an older PDF as stale. Export recompiles changed content before downloading, while failed compilation keeps the previous preview visibly marked and leaves the source editable. With Ghostscript installed, pages are displayed as images using Previous/Next controls, without requiring a browser PDF plugin. Without Ghostscript, the UI explains the limitation and falls back to native PDF display; the complete PDF remains exportable.
 
@@ -56,12 +60,13 @@ Opening a folder or project replaces the current workspace after confirmation. A
 
 | Feature | Support |
 | --- | --- |
+| Visual editing | Default for complete LaTeX documents; edit text, headings, formatting, lists and formulas |
 | Source files | TeX, LaTeX, STY, CLS, BIB, PS, EPS and UTF-8 text with custom extensions |
 | Project management | Create, rename, delete, select main file and preserve relative paths |
 | References | Navigate labels, citation locations and BibTeX entries; insert cite/ref/label and add entries |
 | Find and replace | Current-file search, wrap-around, replace one/all and case sensitivity |
 | History | Independent per-file undo/redo for source and visual changes |
-| PostScript | PS/text EPS source, page/procedure outline, templates, UTF-8 and Latin-1 |
+| PostScript | PS/text EPS source, page/procedure outline, templates, UTF-8 and Latin-1; no arbitrary PS graphics object editing |
 | Resources | Preserve original binary bytes, including binary EPS |
 | Archives | Read stored/deflated ZIP and export standard ZIP without packages |
 | Drafts | Atomic local project snapshots and legacy single-file migration |

@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import {createDocument, Element} from './helpers/dom.mjs';
 
-// Uses the actual source-first controller and actual LaTeX importer/exporter.
+// Uses the actual workspace controller and actual LaTeX importer/exporter.
 // The DOM fixture has no layout, rendering, script execution or browser event loop.
 const scripts = ['main.js', 'project-model.js', 'workspace.js'].map(name => fs.readFileSync(new URL('../' + name, import.meta.url), 'utf8'));
 const tex = body => '\\documentclass{article}\n\\begin{document}\n' + body + '\n\\end{document}\n';
@@ -46,6 +46,7 @@ function fixture(files, options = {}) {
 
 test('source editing preserves incomplete LaTeX and persists it without a document wrapper', () => {
     const f = fixture([textFile('main.tex', tex('Original'))]);
+    f.app.setMode('source');
     const incomplete = String.raw`\documentclass{report}
 \usepackage{custom}
 \begin{document}
@@ -126,6 +127,7 @@ test('visual edits synchronize before file switches and never leak another pream
 
 test('undo and redo operate on the selected file across source and visual edits', () => {
     const f = fixture([textFile('main.tex', tex('Original.')), textFile('drawing.ps', '%!PS\nold')]);
+    f.app.setMode('source');
     f.ui.sourceArea.value = tex('Source edit.');
     f.app.changed(false);
     f.app.setMode('visual');
@@ -163,6 +165,7 @@ test('project export includes non-active edits, literal source HTML and exact bi
 
 test('save failure retains prior atomic project payload and current source for recovery', () => {
     const f = fixture([textFile('main.tex', tex('Saved.'))]);
+    f.app.setMode('source');
     assert.equal(f.app.persist(), true);
     const saved = f.data.get('visuallatex_workspace_v1');
     f.ui.sourceArea.value = '\\cite{unfinished-new';
@@ -234,4 +237,69 @@ test('project export preserves user files whose names differ only in manifest ca
     const entries = f.app.exportEntries();
     assert.equal(entries.length, 2);
     assert.equal(new TextDecoder().decode(entries.find(file => file.path === path).bytes), '{"user":"content"}');
+});
+
+test('complete TeX documents open visually without changing any original bytes or adding undo steps', () => {
+    const source = '\uFEFF% prefix\r\n\\documentclass{article}\r\n\\begin{document}\r\nText \\cite{keep}.\r\n\\end{document}\r\n% tail\r\n';
+    for (const extension of ['tex', 'latex', 'ltx']) {
+        const f = fixture([textFile('paper.' + extension, source)]);
+        assert.equal(f.app.mode, 'visual', extension);
+        assert.equal(f.context.ProjectModel.language('paper.' + extension), 'latex');
+        assert.match(f.visual.textContent, /Text/);
+        assert.equal(f.app.model.get().text, source);
+        assert.equal(f.app.model.canUndo(), false);
+        assert.equal(f.app.persist(), true);
+        assert.equal(f.context.ProjectModel.deserialize(f.data.get('visuallatex_workspace_v1')).get().text, source);
+        assert.equal(new TextDecoder('utf-8', {ignoreBOM: true}).decode(f.app.exportEntries()[0].bytes), source);
+    }
+});
+
+test('ordinary file switches retain each explicit mode preference while temporary source navigation does not', () => {
+    const f = fixture([textFile('first.tex', tex('First.')), textFile('second.tex', tex('Second.')), textFile('refs.bib', '@book{key}')]);
+    assert.equal(f.app.mode, 'visual');
+    f.visual.querySelector('p').textContent = 'Changed first.';
+    f.app.switchFile('second.tex');
+    assert.equal(f.app.mode, 'visual');
+    assert.equal(f.visual.querySelector('p').textContent, 'Second.');
+    f.app.setMode('source');
+    f.ui.sourceArea.value = tex('Changed second.');
+    f.app.switchFile('first.tex');
+    assert.equal(f.app.mode, 'visual');
+    assert.equal(f.visual.querySelector('p').textContent, 'Changed first.');
+    f.app.setMode('source', {remember: false});
+    f.app.switchFile('refs.bib');
+    f.app.switchFile('first.tex');
+    assert.equal(f.app.mode, 'visual', 'a navigation-only source switch must not become a user preference');
+    f.app.switchFile('second.tex');
+    assert.equal(f.app.mode, 'source');
+    assert.equal(f.ui.sourceArea.value, tex('Changed second.'));
+    const reloaded = fixture(f.app.model.list(), {activePath: 'second.tex'});
+    assert.equal(reloaded.app.mode, 'visual', 'mode choices are session local; a fresh launch restores visual editing');
+    assert.equal(reloaded.visual.querySelector('p').textContent, 'Changed second.');
+});
+
+test('replacing an open visual project loads the new document before syncing or persisting', () => {
+    const f = fixture([textFile('main.tex', tex('Old project.'))]);
+    f.visual.querySelector('p').textContent = 'Uncommitted visual text from old project.';
+    f.app.setMode('source');
+    const replacement = '\\documentclass{report}\r\n\\begin{document}\r\nNew project.\r\n\\end{document}\r\n';
+    const model = new f.context.ProjectModel({files: [textFile('main.tex', replacement)]});
+    f.app.replaceProject(model);
+    assert.equal(f.app.mode, 'visual', 'old project source preference must not leak');
+    assert.equal(f.visual.querySelector('p').textContent, 'New project.');
+    assert.equal(f.app.model.get().text, replacement);
+    assert.equal(f.app.model.canUndo(), false);
+    assert.equal(f.context.ProjectModel.deserialize(f.data.get('visuallatex_workspace_v1')).get().text, replacement);
+});
+
+test('visual conversion failures retain canonical source and a usable source editor', () => {
+    const f = fixture([textFile('first.tex', tex('First.')), textFile('second.tex', tex('Second.'))]);
+    f.app.core.loadVisual = () => { throw new Error('unsupported conversion'); };
+    f.app.switchFile('second.tex');
+    assert.equal(f.app.mode, 'source');
+    assert.equal(f.app.model.get().text, tex('Second.'));
+    assert.equal(f.ui.sourceArea.value, tex('Second.'));
+    assert.equal(f.app.model.canUndo(), false);
+    assert.match(f.notices.at(-1), /可视化加载失败/);
+    assert.equal(f.app.persist(), true);
 });

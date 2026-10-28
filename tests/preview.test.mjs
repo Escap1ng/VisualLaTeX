@@ -268,7 +268,7 @@ async function workspaceFixture(options = {}) {
             removeAttribute(name) { attributes.delete(name); },
             replaceChildren() { this.children = []; },
             appendChild(child) { this.children.push(child); },
-            click() {}, remove() {}, classList: {toggle() {}}
+            click() {}, remove() {}, focus() { this.focused = true; }, classList: {toggle() {}}
         };
     }
     for (const match of html.matchAll(/\bid="([^"]+)"/g)) ids.set(match[1], element(match[1]));
@@ -290,8 +290,34 @@ async function workspaceFixture(options = {}) {
     const app = {model, sync() { syncs++; }, onChange() { renders++; }};
     const controller = f.context.initCompilation(app);
     while (!controller.token) await new Promise(resolve => setImmediate(resolve));
-    return {...f, ids, window, project, model, app, controller, syncCount: () => syncs, renderCount: () => renders};
+    return {...f, ids, window, document, project, model, app, controller, syncCount: () => syncs, renderCount: () => renders};
 }
+
+test('formula dialog confirmation cannot trigger document compilation and returning to editing restores focus', async () => {
+    const f = await workspaceFixture();
+    const compileCount = () => f.calls.filter(call => call.url === '/api/compile').length;
+    f.document.emit('keydown', {key: 'Enter', ctrlKey: true, defaultPrevented: true});
+    f.document.emit('keydown', {key: 'Enter', metaKey: true, target: {closest: () => ({})}});
+    assert.equal(compileCount(), 0);
+    assert.equal(f.ids.get('pdfPreviewPane').hidden, true);
+    let prevented = false;
+    f.document.emit('keydown', {key: 'Enter', ctrlKey: true, preventDefault() { prevented = true; }});
+    while (f.controller.busy) await new Promise(resolve => setImmediate(resolve));
+    assert.equal(prevented, true);
+    assert.equal(compileCount(), 1, 'ordinary editor shortcut still compiles');
+    f.app.mode = 'visual'; f.app.onChange();
+    assert.equal(f.ids.get('btnClosePreview').textContent, '返回可视化编辑');
+    f.ids.get('btnClosePreview').emit('click');
+    assert.equal(f.ids.get('pdfPreviewPane').hidden, true);
+    assert.equal(f.ids.get('editorArea').focused, true);
+    f.ids.get('btnTogglePreview').emit('click');
+    f.window.matchMedia = () => ({matches: false});
+    f.app.revealEditor();
+    assert.equal(f.ids.get('pdfPreviewPane').hidden, false, 'desktop keeps the side-by-side proof');
+    f.window.matchMedia = () => ({matches: true});
+    f.app.revealEditor();
+    assert.equal(f.ids.get('pdfPreviewPane').hidden, true, 'narrow layout reveals the editor when a file is opened');
+});
 
 test('workspace integration binds target selection, compilation, PDF display and project replacement', async () => {
     const f = await workspaceFixture();

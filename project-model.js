@@ -18,7 +18,7 @@
 
     function language(path) {
         const extension = String(path).split('.').pop().toLowerCase();
-        if (['tex', 'latex', 'sty', 'cls'].includes(extension)) return 'latex';
+        if (['tex', 'latex', 'ltx', 'sty', 'cls'].includes(extension)) return 'latex';
         if (extension === 'bib') return 'bibtex';
         if (extension === 'ps' || extension === 'eps') return 'postscript';
         return 'text';

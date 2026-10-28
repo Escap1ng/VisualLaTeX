@@ -74,22 +74,23 @@
 .sidebar-note { color: var(--text-secondary); font-size: 11px; line-height: 1.7; padding: 8px 13px 14px; }
 
 .document-pane { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; background: var(--surface); }
-.document-header { display: flex; align-items: center; justify-content: space-between; flex: 0 0 auto; gap: 12px; min-height: 49px; padding: 8px 15px; border-bottom: 1px solid var(--border); }
-.document-location { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.document-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; flex: 0 0 auto; gap: 8px 12px; min-height: 49px; padding: 8px 15px; border-bottom: 1px solid var(--border); }
+.document-location { display: flex; align-items: center; gap: 10px; flex: 1 1 120px; min-width: 0; }
 .current-path { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 12px var(--editor-font); }
 .language-badge { display: inline-flex; padding: 2px 5px; border-radius: 3px; background: #eaf0f8; color: #45678f; font: 10px var(--editor-font); white-space: nowrap; }
 .mode-switch { display: flex; gap: 2px; padding: 2px; background: var(--surface-soft); border: 1px solid var(--border); border-radius: 6px; flex-shrink: 0; }
-.mode-switch button { min-height: 26px; padding: 3px 9px; font-size: 11px; border: 0; background: transparent; color: var(--text-secondary); }
-.mode-switch button.active, .mode-switch button[aria-pressed="true"] { background: white; color: var(--accent); box-shadow: 0 1px 3px #20395818; }
+.mode-switch button { min-height: 34px; padding: 5px 12px; font-size: 12px; border: 0; background: transparent; color: var(--text-secondary); }
+.mode-switch button.active, .mode-switch button[aria-pressed="true"] { background: var(--accent); color: white; box-shadow: 0 1px 3px #20395818; }
 .source-panel { display: flex; flex: 1; min-height: 0; min-width: 0; overflow: hidden; background: #fff; }
 .line-numbers { flex: 0 0 53px; padding: 19px 11px 40px 5px; margin: 0; background: #f8fafd; border-right: 1px solid #edf1f6; color: #97a4b7; font: 13px/1.75 var(--editor-font); text-align: right; user-select: none; overflow: hidden; tab-size: 4; }
 .workspace-app .source-area { flex: 1; width: 100%; min-width: 0; height: 100%; padding: 19px 22px 40px 16px; border: 0; border-radius: 0; outline: none; resize: none; color: #263d5d; background: #fff; font: 13px/1.75 var(--editor-font); tab-size: 4; white-space: pre; overflow: auto; caret-color: #3269ae; }
 .workspace-app .source-area:focus-visible { outline: none; box-shadow: inset 0 0 0 2px #3972bc25; }
 .source-area::selection { background: #d6e5fb; }
 .visual-panel { flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden; background: #edf1f6; }
-.mode-note { flex: 0 0 auto; padding: 8px 16px; border-bottom: 1px solid var(--border); background: #f8fafd; color: var(--text-secondary); font-size: 11px; }
-.workspace-app .editor-area { width: min(100%, 880px); margin: 0 auto; padding: 32px 42px 70px; background: white; min-height: 0; overflow: auto; box-shadow: 0 0 0 1px #dce3ed; }
+.mode-note { flex: 0 0 auto; padding: 8px 16px; border-bottom: 1px solid var(--border); background: #f8fafd; color: var(--text-secondary); font-size: 12px; line-height: 1.6; }
+.workspace-app .editor-area { width: min(calc(100% - 24px), 880px); margin: 12px auto; padding: 32px 42px 70px; background: white; min-height: 0; overflow: auto; border: 1px solid var(--border); box-shadow: 0 2px 8px #24354f0d; }
 .workspace-app .editor-area:focus { background: white; }
+.pdf-edit-note { flex: 0 0 auto; margin: 0; padding: 6px 12px; background: var(--surface-soft); color: var(--text-secondary); font-size: 11px; line-height: 1.6; }
 .asset-panel { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 9px; padding: 32px; text-align: center; }
 .asset-mark { font: 48px Georgia, serif; color: #8ca3c1; }
 .asset-panel h2 { font-size: 18px; font-weight: 500; }
@@ -157,7 +158,7 @@
     .document-location { gap: 7px; }
     .current-path { font-size: 11px; }
     .language-badge { font-size: 9px; }
-    .mode-switch button { min-height: 30px; font-size: 11px; padding: 4px 8px; }
+    .mode-switch button { min-height: 44px; font-size: 12px; padding: 6px 10px; }
     .line-numbers { flex-basis: 39px; padding: 15px 7px 40px 3px; font-size: 16px; line-height: 1.6; }
     .workspace-app .source-area { padding: 15px 14px 40px 10px; font-size: 16px; line-height: 1.6; }
     .source-hint { display: none; }

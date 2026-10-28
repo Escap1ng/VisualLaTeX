@@ -312,6 +312,9 @@
             document.body.classList.toggle('compilation-visible', show);
             $('btnTogglePreview').setAttribute('aria-expanded', String(show));
         }
+        app.revealEditor = () => {
+            if (window.matchMedia?.('(max-width: 700px)').matches) showPreview(false);
+        };
         function targets() {
             const files = app.model.list().filter(kindForFile);
             const signature = JSON.stringify(files.map(file => file.path));
@@ -354,6 +357,7 @@
             $('btnExportPdf').disabled = controller.busy || !controller.token || !kind;
             $('compileTarget').disabled = controller.busy;
             $('btnCompilerRetry').disabled = controller.busy;
+            $('btnClosePreview').textContent = app.mode === 'visual' ? '返回可视化编辑' : '返回源码编辑';
             $('compilerStatus').textContent = engine?.available ? engine.label : controller.token ? (kind === 'postscript' ? '需要 Ghostscript' : '需要 LaTeX 引擎') : '本机编译';
             $('compileStatus').textContent = controller.message;
             $('compileStatus').dataset.state = controller.phase;
@@ -411,7 +415,10 @@
             controller.markChanged(); render();
         });
         $('btnTogglePreview').addEventListener('click', () => showPreview(preview.hidden));
-        $('btnClosePreview').addEventListener('click', () => showPreview(false));
+        $('btnClosePreview').addEventListener('click', () => {
+            showPreview(false);
+            $(app.mode === 'visual' ? 'editorArea' : 'sourceArea').focus();
+        });
         $('btnCompile').addEventListener('click', () => { showPreview(); controller.compile(); });
         $('btnCancelCompile').addEventListener('click', () => controller.cancel());
         $('btnExportPdf').addEventListener('click', () => { showPreview(); controller.exportPdf(); });
@@ -420,6 +427,7 @@
         $('btnNextPage').addEventListener('click', () => { controller.previewTask = controller.loadPage(controller.preview.page + 1); });
         $('btnRetryPage').addEventListener('click', () => { controller.previewTask = controller.loadPreview(); });
         document.addEventListener('keydown', event => {
+            if (event.defaultPrevented || event.target?.closest?.('[role="dialog"]')) return;
             if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
                 event.preventDefault(); showPreview(); controller.compile();
             }

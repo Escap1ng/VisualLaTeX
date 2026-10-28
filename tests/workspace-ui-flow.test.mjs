@@ -129,7 +129,12 @@ async function fixture({denyStorage = false, denyDialogs = false, initialStorage
     await emit(document, 'DOMContentLoaded');
     return {context, app: context.visualWorkspace, document, ids, storage, prompts, alerts, blobs, emit,
         node: id => ids.get(id), click: id => ids.get(id).click(),
-        async input(id, value) { ids.get(id).value = value; await emit(ids.get(id), 'input'); },
+        async input(id, value) {
+            // Source-oriented scenarios explicitly open the source editor, as a
+            // real user must now do from the default visual editing surface.
+            if (id === 'sourceArea') await ids.get('modeSource').click();
+            ids.get(id).value = value; await emit(ids.get(id), 'input');
+        },
         async flushTimers() {
             const pending = [...tasks.values()]; tasks.clear();
             for (const callback of pending) await callback();
@@ -137,18 +142,73 @@ async function fixture({denyStorage = false, denyDialogs = false, initialStorage
     };
 }
 
-test('actual workspace startup binds the real markup in source mode', async () => {
+test('actual workspace startup opens LaTeX in the editable visual surface', async () => {
     const f = await fixture();
     assert.ok(f.app);
-    assert.equal(f.app.mode, 'source');
+    assert.equal(f.app.mode, 'visual');
     assert.equal(f.app.model.activePath, 'main.tex');
     assert.match(f.node('sourceArea').value, /\\documentclass\{article\}/);
-    assert.equal(f.node('sourcePanel').hidden, false);
-    assert.equal(f.node('visualPanel').hidden, true);
+    assert.equal(f.node('sourcePanel').hidden, true);
+    assert.equal(f.node('visualPanel').hidden, false);
+    assert.ok(f.node('editorArea').querySelector('h1'));
     assert.equal(f.node('languageBadge').textContent, 'LaTeX');
     assert.equal(f.node('fileTree').querySelectorAll('button').length, 3);
-    assert.equal(f.node('modeSource').getAttribute('aria-pressed'), 'true');
+    assert.equal(f.node('modeVisual').getAttribute('aria-pressed'), 'true');
     assert.deepEqual(f.alerts, []);
+});
+
+test('imported LaTeX is immediately editable visually and file navigation keeps visual changes', async () => {
+    const f = await fixture();
+    const source = '% untouched preamble\r\n\\documentclass{report}\r\n\\begin{document}\r\nAn imported paragraph.\r\n\\end{document}\r\n% untouched tail\r\n';
+    const bytes = new TextEncoder().encode(source);
+    f.node('importFiles').files = [{name: 'paper.ltx', size: bytes.length, arrayBuffer: async () => bytes.buffer}];
+    await f.emit(f.node('importFiles'), 'change');
+    assert.equal(f.app.mode, 'visual');
+    assert.equal(f.app.model.get().text, source);
+    assert.equal(f.node('btnBold').disabled, false, 'ltx documents must have the same visual tools as tex');
+    assert.equal(f.node('modeVisual').disabled, false);
+    f.node('editorArea').querySelector('p').textContent = 'An edited visual paragraph.';
+    await f.emit(f.node('editorArea'), 'input');
+    await f.flushTimers();
+    const edited = source.replace('An imported paragraph.', 'An edited visual paragraph.');
+    const file = path => f.node('fileTree').querySelectorAll('button').find(node => node.textContent.endsWith(path));
+    await file('drawing.ps').click();
+    assert.equal(f.app.mode, 'source');
+    await file('paper.ltx').click();
+    assert.equal(f.app.mode, 'visual');
+    assert.equal(f.node('editorArea').querySelector('p').textContent, 'An edited visual paragraph.');
+    assert.equal(f.app.model.get().text, edited);
+    await f.click('btnUndo');
+    assert.equal(f.app.mode, 'visual');
+    assert.equal(f.app.model.get().text, source);
+    assert.equal(f.node('editorArea').querySelector('p').textContent, 'An imported paragraph.');
+    await f.click('btnRedo');
+    assert.equal(f.app.model.get().text, edited);
+    await f.click('modeSource');
+    await file('drawing.ps').click();
+    await file('paper.ltx').click();
+    assert.equal(f.app.mode, 'source', 'explicit mode buttons set a per-file session preference');
+    await f.click('btnDownload');
+    assert.equal(new TextDecoder('utf-8', {ignoreBOM: true}).decode(await f.blobs.at(-1).arrayBuffer()), edited);
+    const restored = await fixture({initialStorage: [...f.storage]});
+    assert.equal(restored.app.mode, 'visual');
+    assert.equal(restored.app.model.activePath, 'paper.ltx');
+    assert.equal(restored.node('editorArea').querySelector('p').textContent, 'An edited visual paragraph.');
+    assert.equal(restored.app.model.get().text, edited);
+});
+
+test('reference navigation opens source only for the navigation and ordinary file clicks restore visual editing', async () => {
+    const f = await fixture();
+    const citation = f.node('referenceList').querySelectorAll('button').find(node => node.textContent === 'example2026 · main.tex');
+    assert.ok(citation);
+    await citation.click();
+    assert.equal(f.app.mode, 'source');
+    assert.equal(f.node('sourcePanel').hidden, false);
+    const file = path => f.node('fileTree').querySelectorAll('button').find(node => node.textContent.endsWith(path));
+    await file('references.bib').click();
+    await file('main.tex').click();
+    assert.equal(f.app.mode, 'visual');
+    assert.equal(f.node('visualPanel').hidden, false);
 });
 
 test('project name input persists before blur and survives editor renders, file changes and reload', async () => {
@@ -615,7 +675,7 @@ test('a denied localStorage accessor still allows editing and ZIP export without
     const oldDraft = 'The inaccessible original draft must never be overwritten.';
     const f = await fixture({denyStorage: true, initialStorage: [['visuallatex_workspace_v1', oldDraft]]});
     assert.ok(f.app);
-    assert.equal(f.app.mode, 'source');
+    assert.equal(f.app.mode, 'visual');
     assert.equal(f.app.recoveryBlocked, true);
     assert.match(f.node('statusText').textContent, /项目恢复失败/);
     const tex = '\\documentclass{article}\n\\begin{document}\nEdited without storage.\n\\end{document}\n';

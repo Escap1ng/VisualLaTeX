@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VisualLaTeX Studio · LaTeX 与 PostScript 工作台</title>
+    <title>VisualLaTeX Studio · 可视化 LaTeX 编辑与排版</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="workspace.css">
     <link rel="stylesheet" href="preview.css">
@@ -92,8 +92,8 @@
                         <span id="currentPath" class="current-path">main.tex</span>
                     </div>
                     <div class="mode-switch" role="group" aria-label="编辑模式">
-                        <button id="modeSource" class="active" type="button" aria-pressed="true">源码</button>
-                        <button id="modeVisual" type="button" aria-pressed="false" title="完整 LaTeX 文档可使用可视化编辑">可视化</button>
+                        <button id="modeVisual" class="active" type="button" aria-pressed="true" title="直接修改 LaTeX 文档的文字、标题与格式">可视化编辑</button>
+                        <button id="modeSource" type="button" aria-pressed="false" title="查看或修改完整源码">源码编辑</button>
                     </div>
                 </div>
 
@@ -116,14 +116,14 @@
                     </div>
                 </div>
 
-                <div id="sourcePanel" class="source-panel">
+                <div id="sourcePanel" class="source-panel" hidden>
                     <pre id="lineNumbers" class="line-numbers" aria-hidden="true">1</pre>
                     <textarea id="sourceArea" class="source-area" aria-label="当前文件源码" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" wrap="off" placeholder="开始编辑，或从左侧添加现有项目文件…"></textarea>
                 </div>
 
-                <div id="visualPanel" class="visual-panel" hidden>
-                    <div class="mode-note">编辑文字与格式；引用、导言区和任意命令都可切回源码修改。</div>
-                    <div id="editorArea" class="editor-area" contenteditable="true" role="textbox" aria-label="LaTeX 可视化编辑区" aria-multiline="true"></div>
+                <div id="visualPanel" class="visual-panel">
+                    <div id="visualEditingHelp" class="mode-note">直接修改下面的文字与标题，用工具栏调整格式，双击公式编辑。复杂命令可在「源码编辑」中补充。</div>
+                    <div id="editorArea" class="editor-area" contenteditable="true" role="textbox" aria-label="LaTeX 可视化编辑区" aria-describedby="visualEditingHelp" aria-multiline="true"></div>
                 </div>
 
                 <div id="assetPanel" class="asset-panel" hidden>
@@ -134,7 +134,7 @@
 
                 <div class="document-footer">
                     <span id="positionInfo">行 1，列 1</span>
-                    <span class="source-hint">LaTeX / PostScript 源码编辑 · 无需联网</span>
+                    <span class="source-hint">可视化修改 · 完整源码 · 离线保存</span>
                     <button id="btnEncoding" class="encoding-button" type="button" title="转换当前文本文件的编码">UTF-8</button>
                 </div>
             </main>
@@ -163,6 +163,7 @@
                     <span id="previewDocument">尚未生成 PDF</span>
                     <button id="btnClosePreview" type="button">返回编辑</button>
                 </div>
+                <p class="pdf-edit-note">这里只显示排版结果；修改内容请返回编辑区。</p>
                 <p id="compileStatus" class="compile-status" role="status" aria-live="polite">正在检测本机编译服务…</p>
                 <p id="previewStale" class="preview-stale" hidden>当前显示上一次结果；请重新编译以反映最新源码。</p>
                 <div id="previewPageControls" class="preview-page-controls" hidden aria-label="PDF 分页">

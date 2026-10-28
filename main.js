@@ -1368,6 +1368,9 @@ function initFormulaModal() {
     document.getElementById('formulaInput').addEventListener('keydown', function(e) {
         if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
             e.preventDefault();
+            // This shortcut confirms the formula locally; it must not also
+            // reach the workspace's compile shortcut and hide the editor.
+            e.stopPropagation();
             insertFormulaFromInput();
         }
     });

@@ -1,4 +1,4 @@
-/* Source-first LaTeX / PostScript workspace. Classic script: runs offline without a build. */
+/* Visual-first LaTeX workspace with complete source access. Runs offline without a build. */
 const WORKSPACE_KEY = 'visuallatex_workspace_v1';
 
 // Embedded browsers may throw instead of showing native JavaScript dialogs.
@@ -73,7 +73,7 @@ function workspaceTemplate(path) {
     if (/\.eps$/i.test(path)) return '%!PS-Adobe-3.0 EPSF-3.0\n%%BoundingBox: 0 0 300 180\n%%EndComments\n/Helvetica findfont 18 scalefont setfont\n30 90 moveto (Hello, EPS) show\n%%EOF\n';
     if (/\.ps$/i.test(path)) return '%!PS-Adobe-3.0\n%%Title: Untitled\n%%Pages: 1\n%%BoundingBox: 0 0 595 842\n%%EndComments\n%%Page: 1 1\n/Helvetica findfont 24 scalefont setfont\n72 720 moveto (Hello, PostScript) show\nshowpage\n%%EOF\n';
     if (/\.bib$/i.test(path)) return '@article{example2026,\n  author = {Author, A.},\n  title = {An example reference},\n  journal = {Journal name},\n  year = {2026}\n}\n';
-    if (/(^|\/)main\.(tex|latex)$/i.test(path)) return '\\documentclass{article}\n\\usepackage[UTF8]{ctex}\n\\usepackage{amsmath,graphicx}\n\n\\begin{document}\n\\section{开始写作}\\label{sec:start}\n在源码中可以修改导言区、引用和任意命令。\n\n参考文献示例：\\cite{example2026}。\n\n\\bibliographystyle{plain}\n\\bibliography{references}\n\\end{document}\n';
+    if (/(^|\/)main\.(tex|latex|ltx)$/i.test(path)) return '\\documentclass{article}\n\\usepackage[UTF8]{ctex}\n\\usepackage{amsmath,graphicx}\n\n\\begin{document}\n\\section{开始写作}\\label{sec:start}\n直接在这里修改文字与标题，用工具栏调整格式或插入公式。需要时可切换到完整源码。\n\n参考文献示例：\\cite{example2026}。\n\n\\bibliographystyle{plain}\n\\bibliography{references}\n\\end{document}\n';
     return '';
 }
 
@@ -159,7 +159,8 @@ class WorkspaceController {
         this.core = core;
         this.storage = storage;
         this.notify = notify;
-        this.mode = 'source';
+        this.mode = null;
+        this.modePreferences = new Map();
         this.loading = false;
         this.recoveryBlocked = false;
         this.onChange = () => {};
@@ -170,7 +171,7 @@ class WorkspaceController {
         return original.includes('\r\n') && !/(^|[^\r])\n/.test(original) ? value.replace(/\r?\n/g, '\r\n') : value;
     }
     sync(group = false) {
-        if (this.loading) return;
+        if (this.loading || !this.mode) return;
         const file = this.model.get();
         if (!file || file.kind !== 'text') return;
         const text = this.mode === 'visual' ? this.core.exportVisual() : this.sourceValue(this.ui.sourceArea.value, file.text);
@@ -178,35 +179,64 @@ class WorkspaceController {
     }
     show() {
         const file = this.model.get();
+        this.visualError = null;
         this.loading = true;
-        this.ui.sourceArea.value = file && file.kind === 'text' ? file.text : '';
-        this.loading = false;
+        try {
+            this.ui.sourceArea.value = file && file.kind === 'text' ? file.text : '';
+            this.mode ||= this.preferredMode();
+            if (this.mode === 'visual') {
+                if (this.supportsVisual(file)) this.core.loadVisual(file.text, file.path);
+                else this.mode = 'source';
+            }
+        } catch (error) {
+            // The canonical file remains intact if its visual conversion fails.
+            this.mode = 'source';
+            this.visualError = '可视化加载失败，已保留完整源码：' + error.message;
+            this.notify(this.visualError);
+        } finally { this.loading = false; }
         this.onChange();
+    }
+    supportsVisual(file = this.model.get()) {
+        return Boolean(file && file.kind === 'text' && /\.(tex|latex|ltx)$/i.test(file.path) && this.core.canVisual(file.text));
+    }
+    preferredMode() {
+        const file = this.model.get();
+        return this.supportsVisual(file) && this.modePreferences.get(file.path) !== 'source' ? 'visual' : 'source';
+    }
+    openCurrent() {
+        // Load the newly selected file before any sync/export can read the old
+        // visual DOM into it. This also handles the first file of an empty project.
+        this.mode = null;
+        this.show();
+        const file = this.model.get();
+        if (file?.kind === 'text' && /\.(tex|latex|ltx)$/i.test(file.path) && !this.supportsVisual(file)) {
+            this.notify('当前 LaTeX 文件缺少完整的 document 环境，已使用源码编辑；内容保持原样。');
+        }
     }
     switchFile(path) {
         this.sync();
         if (!this.model.get(path)) throw new Error('文件不存在');
         this.model.activePath = path;
-        this.mode = 'source';
-        this.show();
+        this.openCurrent();
         this.persist();
     }
-    setMode(mode) {
-        if (mode === this.mode) return true;
+    setMode(mode, {remember = true} = {}) {
+        if (mode === this.mode) {
+            if (remember && this.model.get()) this.modePreferences.set(this.model.activePath, mode);
+            return true;
+        }
         this.sync();
         const file = this.model.get();
         if (mode === 'visual') {
-            if (!file || file.kind !== 'text' || !/\.(tex|latex)$/i.test(file.path) || !this.core.canVisual(file.text)) {
+            if (!this.supportsVisual(file)) {
                 this.notify('此文件请使用源码编辑。可视化模式需要完整的 LaTeX document 环境。');
                 return false;
             }
-            this.loading = true;
-            try { this.core.loadVisual(file.text, file.path); }
-            finally { this.loading = false; }
         }
         this.mode = mode;
+        if (remember && file) this.modePreferences.set(file.path, mode);
         this.show();
-        return true;
+        return this.mode === mode;
     }
     changed(group = true) {
         if (this.loading) return;
@@ -217,10 +247,7 @@ class WorkspaceController {
         this.sync();
         const changed = this.model[direction]();
         if (!changed) return;
-        const visual = this.mode === 'visual';
-        this.mode = 'source';
         this.show();
-        if (visual) this.setMode('visual');
         this.persist();
     }
     persist() {
@@ -239,9 +266,9 @@ class WorkspaceController {
     }
     replaceProject(model) {
         this.model = model;
-        this.mode = 'source';
+        this.modePreferences.clear();
         this.recoveryBlocked = false;
-        this.show();
+        this.openCurrent();
         this.persist();
     }
     exportEntries() {
@@ -295,7 +322,7 @@ function initWorkspace() {
     };
     // Existing visual tools call these hooks after DOM mutations.
     updatePreview = function() { if (!app.loading) { app.changed(false); scheduleSave(); } };
-    saveDraft = function() { return app.persist(); };
+    saveDraft = function() { return !app.loading && app.persist(); };
     initFormulaModal();
     editorArea.addEventListener('mouseup', saveEditorSelection);
     editorArea.addEventListener('keyup', saveEditorSelection);
@@ -318,15 +345,20 @@ function initWorkspace() {
         node.addEventListener('click', safely(action));
         return node;
     }
-    function jump(path, offset = 0, length = 0) {
+    function jump(path, offset = null, length = 0) {
         app.switchFile(path);
         savedSelection = null;
-        const text = app.model.get().text;
-        const start = text.slice(0, offset).replace(/\r\n?/g, '\n').length;
-        ui.sourceArea.focus(); ui.sourceArea.setSelectionRange(start, start + length);
-        const line = ui.sourceArea.value.slice(0, start).split('\n').length;
-        ui.sourceArea.scrollTop = Math.max(0, (line - 4) * 23);
-        position();
+        if (offset !== null) app.setMode('source', {remember: false});
+        app.revealEditor?.();
+        if (app.mode === 'visual') editorArea.focus();
+        else if (app.model.get()?.kind === 'text') {
+            const text = app.model.get().text;
+            const start = text.slice(0, offset || 0).replace(/\r\n?/g, '\n').length;
+            ui.sourceArea.focus(); ui.sourceArea.setSelectionRange(start, start + length);
+            const line = ui.sourceArea.value.slice(0, start).split('\n').length;
+            ui.sourceArea.scrollTop = Math.max(0, (line - 4) * 23);
+            position();
+        }
         document.body.classList.remove('files-open', 'outline-open');
         $('btnFiles').setAttribute('aria-expanded', 'false');
         $('btnOutline').setAttribute('aria-expanded', 'false');
@@ -371,8 +403,11 @@ function initWorkspace() {
         $('modeVisual').classList.toggle('active', app.mode === 'visual');
         $('modeSource').setAttribute('aria-pressed', String(app.mode === 'source'));
         $('modeVisual').setAttribute('aria-pressed', String(app.mode === 'visual'));
-        $('modeVisual').disabled = !text || !/\.(tex|latex)$/i.test(file.path);
-        $('modeVisual').title = '仅完整 LaTeX 文档支持可视化；其他文件直接编辑源码';
+        $('modeVisual').disabled = !text || !/\.(tex|latex|ltx)$/i.test(file.path);
+        $('modeVisual').title = app.supportsVisual(file) ? '直接修改文档文字、标题和公式'
+            : text && /\.(tex|latex|ltx)$/i.test(file.path)
+                ? '当前文件缺少完整的 document 环境，请使用源码编辑'
+                : '此文件使用源码编辑；完整 LaTeX 文档支持可视化';
         $('btnUndo').disabled = !text || !app.model.canUndo();
         $('btnRedo').disabled = !text || !app.model.canRedo();
         for (const id of ['btnH1','btnH2','btnH3','btnBold','btnItalic','btnCenter','btnUl','btnOl','btnInlineFormula','btnBlockFormula','btnImage','btnInsertCitation','btnInsertReference','btnInsertLabel']) $(id).disabled = !text || language !== 'latex';
@@ -390,7 +425,7 @@ function initWorkspace() {
     }
     app.onChange = render;
     function sourceEdit(replacement, start = ui.sourceArea.selectionStart, end = ui.sourceArea.selectionEnd) {
-        if (!app.setMode('source')) return;
+        if (!app.setMode('source', {remember: false})) return;
         const file = app.model.get();
         if (!file || file.kind !== 'text') throw new Error('请先选择文本文件');
         const value = ui.sourceArea.value;
@@ -399,7 +434,7 @@ function initWorkspace() {
         app.changed(false); app.persist(); ui.sourceArea.focus(); position();
     }
     function wrap(before, after) {
-        app.setMode('source');
+        app.setMode('source', {remember: false});
         const start = ui.sourceArea.selectionStart;
         const selected = ui.sourceArea.value.slice(start, ui.sourceArea.selectionEnd);
         sourceEdit(before + selected + after);
@@ -453,7 +488,7 @@ function initWorkspace() {
         app.sync();
         const source = convertNodeToLatex(token).replace(/\r\n?/g, '\n');
         const offset = locateWorkspaceToken(editorArea, token, app.model.get().text);
-        app.setMode('source');
+        app.setMode('source', {remember: false});
         ui.sourceArea.focus();
         if (offset >= 0) ui.sourceArea.setSelectionRange(offset, offset + source.length);
         position();
@@ -461,7 +496,7 @@ function initWorkspace() {
     }));
 
     async function insertReference(kind) {
-        app.setMode('source');
+        app.setMode('source', {remember: false});
         const refs = app.model.references();
         const first = kind === 'cite' ? refs.bibliography[0] : refs.labels[0];
         const key = await workspacePrompt(kind === 'cite' ? '文献键，可用逗号分隔多个键' : '标签名称', first ? first.key : kind === 'label' ? 'sec:new' : '');
@@ -491,17 +526,23 @@ function initWorkspace() {
         const file = app.model.add({path, kind: 'text', text: workspaceTemplate(path), encoding: 'utf-8'});
         // add() selects the first file in an empty project. Do not sync the old
         // empty editor into that newly created template.
-        app.model.activePath = file.path; app.mode = 'source'; app.show(); app.persist();
+        app.model.activePath = file.path; app.openCurrent(); app.persist();
     });
     bind('renameFile', async () => {
         app.sync();
         const file = app.model.get(); if (!file) return;
         const path = await workspacePrompt('新的文件路径（已有源码中的路径引用不会自动更名）', file.path);
-        if (path && path !== file.path) { const renamed = app.model.rename(file.path, path); app.switchFile(renamed.path); }
+        if (path && path !== file.path) {
+            const preference = app.modePreferences.get(file.path);
+            const renamed = app.model.rename(file.path, path);
+            app.modePreferences.delete(file.path);
+            if (preference) app.modePreferences.set(renamed.path, preference);
+            app.openCurrent(); app.persist();
+        }
     });
     bind('deleteFile', async () => {
         const file = app.model.get(); if (!file || !await workspaceConfirm('删除项目文件 ' + file.path + '？请先导出需要保留的内容。')) return;
-        app.model.remove(file.path); app.mode = 'source'; app.show(); app.persist();
+        app.model.remove(file.path); app.modePreferences.delete(file.path); app.openCurrent(); app.persist();
     });
     bind('setMainFile', () => { app.sync(); app.model.mainPath = app.model.activePath; app.persist(); panels(); notify('已设为项目主文件'); });
     bind('btnNewProject', async () => { if (await workspaceConfirm('新建项目会替换本机当前草稿，请先导出备份。继续？')) app.replaceProject(defaultWorkspace()); });
@@ -522,7 +563,7 @@ function initWorkspace() {
         app.sync(); const file = app.model.get(); if (!file || file.kind !== 'text') return;
         if (navigator.clipboard && navigator.clipboard.writeText) await navigator.clipboard.writeText(file.text);
         else {
-            app.setMode('source'); ui.sourceArea.select();
+            app.setMode('source', {remember: false}); ui.sourceArea.select();
             if (!document.execCommand('copy')) throw new Error('浏览器禁止自动复制，请按 Ctrl+C');
         }
         notify('当前文件源码已复制');
@@ -558,7 +599,7 @@ function initWorkspace() {
         const names = new Set(app.model.list().map(file => file.path.normalize('NFC').toLowerCase()));
         const added = app.model.addMany(entries.map(file => ({...file, path: uniquePath(file.path, names)})));
         if (added.length) {
-            app.model.activePath = added.at(-1).path; app.mode = 'source'; app.show(); app.persist();
+            app.model.activePath = added.at(-1).path; app.openCurrent(); app.persist();
         }
         notify('已导入 ' + entries.length + ' 个文件；重名文件已自动另存');
     }));
@@ -597,7 +638,7 @@ function initWorkspace() {
         return new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $('findCase').checked ? 'g' : 'gi');
     }
     function findNext() {
-        app.setMode('source');
+        app.setMode('source', {remember: false});
         const needle = $('findText').value; if (!needle) return -1;
         const value = ui.sourceArea.value;
         const pattern = literalFindPattern(needle);
@@ -609,11 +650,11 @@ function initWorkspace() {
         if (match) { ui.sourceArea.focus(); ui.sourceArea.setSelectionRange(index, index + match[0].length); position(); }
         return index;
     }
-    bind('btnFind', () => { app.setMode('source'); $('findPanel').hidden = false; $('findText').focus(); });
+    bind('btnFind', () => { app.setMode('source', {remember: false}); $('findPanel').hidden = false; $('findText').focus(); });
     bind('btnCloseFind', () => { $('findPanel').hidden = true; ui.sourceArea.focus(); });
     bind('btnFindNext', findNext);
     bind('btnReplace', () => {
-        app.setMode('source');
+        app.setMode('source', {remember: false});
         const query = $('findText').value; if (!query) return;
         const selected = ui.sourceArea.value.slice(ui.sourceArea.selectionStart, ui.sourceArea.selectionEnd);
         const match = literalFindPattern(query).exec(selected);
@@ -621,7 +662,7 @@ function initWorkspace() {
         if (matches || findNext() >= 0) sourceEdit($('replaceText').value);
     });
     bind('btnReplaceAll', () => {
-        app.setMode('source');
+        app.setMode('source', {remember: false});
         const query = $('findText').value; if (!query) return;
         const value = ui.sourceArea.value;
         const replacement = $('replaceText').value;
@@ -648,6 +689,10 @@ function initWorkspace() {
     window.addEventListener('pagehide', () => { clearTimeout(saveTimer); app.persist(); });
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') app.persist(); });
     app.show(); panels();
-    if (!blocked) notify('源码模式：导言区、引用、LaTeX 和 PostScript 均可直接编辑');
+    if (!blocked && !app.visualError) notify(app.mode === 'visual'
+        ? '直接在文档中修改文字、标题和公式；需要时可切换完整源码。'
+        : /\.(tex|latex|ltx)$/i.test(app.model.activePath || '')
+            ? '当前 LaTeX 文件缺少完整的 document 环境，已使用源码编辑；内容保持原样。'
+            : '当前文件使用源码编辑；完整 LaTeX 文档默认以可视化方式打开。');
     if (typeof initCompilation === 'function') initCompilation(app);
 }

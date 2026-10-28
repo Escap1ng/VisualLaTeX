@@ -183,6 +183,40 @@ test('double-clicking an existing formula loads its value and mode', () => {
     assert.equal(f.ids.btnInsertFormula.textContent, '更新公式');
 });
 
+test('formula confirmation shortcuts edit once without reaching workspace compile handlers', () => {
+    for (const modifier of ['ctrlKey', 'metaKey']) {
+        const f = fixture();
+        f.context.initFormulaModal();
+        f.context.openFormulaModal('inline');
+        f.ids.formulaInput.value = 'x + 1';
+        const event = {key: 'Enter', [modifier]: true, defaultPrevented: false, propagationStopped: false,
+            preventDefault() { this.defaultPrevented = true; },
+            stopPropagation() { this.propagationStopped = true; }};
+        f.ids.formulaInput.listeners.keydown(event);
+        let compileCalls = 0;
+        if (!event.propagationStopped) compileCalls++;
+        assert.equal(event.defaultPrevented, true);
+        assert.equal(compileCalls, 0);
+        assert.equal(f.ids.editorArea.childNodes.filter(node => node.getAttribute?.('data-formula') === 'x + 1').length, 1);
+        assert.equal(f.calls.saves, 1);
+        assert.equal(f.ids.formulaModal.classList.contains('show'), false);
+    }
+});
+
+test('an empty formula confirmation remains in the modal without starting compilation', () => {
+    const f = fixture();
+    f.context.initFormulaModal();
+    f.context.openFormulaModal('inline');
+    let propagationStopped = false;
+    f.ids.formulaInput.listeners.keydown({key: 'Enter', ctrlKey: true,
+        preventDefault() {}, stopPropagation() { propagationStopped = true; }});
+    assert.equal(propagationStopped, true);
+    assert.equal(f.ids.formulaModal.classList.contains('show'), true);
+    assert.equal(f.ids.editorArea.childNodes.length, 0);
+    assert.equal(f.calls.saves, 0);
+    assert.equal(f.calls.statuses.at(-1), '请输入公式内容');
+});
+
 test('editing an existing formula replaces it once and invalidates old source metadata', () => {
     const f = fixture();
     const formula = f.formula('x');

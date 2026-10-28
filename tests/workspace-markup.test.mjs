@@ -46,13 +46,18 @@ test('offline scripts and stylesheet overrides load in dependency order', () => 
     }
 });
 
-test('source starts editable while alternate panes honor hidden independently of legacy CSS', () => {
+test('visual editing is the primary editable surface and alternate panes honor hidden', () => {
     assert.equal(ids.get('sourceArea').tag, 'textarea');
     assert.match(ids.get('sourceArea').attributes, /\bwrap="off"/);
     assert.match(ids.get('sourceArea').attributes, /\bspellcheck="false"/);
     assert.doesNotMatch(ids.get('sourceArea').attributes, /\b(?:readonly|disabled)\b/);
-    assert.doesNotMatch(ids.get('sourcePanel').attributes, /\bhidden\b/);
-    for (const id of ['visualPanel', 'assetPanel', 'findPanel']) assert.match(ids.get(id).attributes, /\bhidden\b/);
+    assert.doesNotMatch(ids.get('visualPanel').attributes, /\bhidden\b/);
+    for (const id of ['sourcePanel', 'assetPanel', 'findPanel']) assert.match(ids.get(id).attributes, /\bhidden\b/);
+    assert.match(ids.get('editorArea').attributes, /\bcontenteditable="true"/);
+    assert.match(ids.get('editorArea').attributes, /\baria-describedby="visualEditingHelp"/);
+    assert.ok(html.indexOf('id="modeVisual"') < html.indexOf('id="modeSource"'));
+    assert.match(html, /id="modeVisual"[^>]*>可视化编辑<\/button>/);
+    assert.match(html, /id="modeSource"[^>]*>源码编辑<\/button>/);
     assert.match(css, /\.workspace-app\s+\[hidden\]\s*\{\s*display:\s*none\s*!important\s*;\s*\}/);
     assert.match(css, /\.workbench\.main-content\s*\{[^}]*display:\s*grid\s*;/);
     assert.match(css, /\.source-panel\s*\{[^}]*display:\s*flex\s*;/);
@@ -62,8 +67,8 @@ test('source starts editable while alternate panes honor hidden independently of
 test('source, modes, project name and file panels expose accessible control labels', () => {
     assert.match(ids.get('sourceArea').attributes, /\baria-label="[^"]+"/);
     assert.match(ids.get('projectName').attributes, /\baria-label="[^"]+"/);
-    assert.match(ids.get('modeSource').attributes, /\baria-pressed="true"/);
-    assert.match(ids.get('modeVisual').attributes, /\baria-pressed="false"/);
+    assert.match(ids.get('modeSource').attributes, /\baria-pressed="false"/);
+    assert.match(ids.get('modeVisual').attributes, /\baria-pressed="true"/);
     for (const id of ['btnFiles', 'btnOutline']) {
         const controlledId = /aria-controls="([^"]+)"/.exec(ids.get(id).attributes)?.[1];
         assert.ok(ids.has(controlledId), `${id} must identify its controlled panel`);
