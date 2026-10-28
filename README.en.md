@@ -2,7 +2,7 @@
 
 # VisualLaTeX
 
-**Import · Tweak · Export — an offline LaTeX light editor that never loses a character**
+**Import · Tweak · Export — an offline LaTeX light editor that preserves original source**
 
 [![Version](https://img.shields.io/badge/Version-v2.0.2-6f42c1)](https://github.com/Escap1ng/VisualLaTeX/releases)
 [![License](https://img.shields.io/badge/License-Apache_2.0-0366d6)](./LICENSE)
@@ -38,7 +38,7 @@ It's the night before the deadline, and your advisor only asked you to "change a
 
 **Import `.tex` → light visual edits → export `.tex`**
 
-Changes only happen where you make them; everything else is preserved character-for-character, fully offline.
+Unedited source blocks retain their original comments, whitespace, and line endings. Edited regions are regenerated as LaTeX. Structures that cannot be safely converted stay in editable source blocks, fully offline.
 
 ## Features
 
@@ -47,7 +47,7 @@ Changes only happen where you make them; everything else is preserved character-
 | One-click import | Open a local `.tex`; sections, paragraphs, lists, formulas, and images become visual elements |
 | Split-pane view | Visual editor on the left, live LaTeX source preview on the right |
 | Basic formatting | Three heading levels, bold, italic, center, ordered/unordered lists |
-| Formula input | 30+ symbol quick palette, inline `$...$` and display `$$...$$` math |
+| Formula input | 30+ symbols; `$...$`, `$$...$$`, `\(...\)`, and `\[...\]`; double-click visual formulas to edit |
 | Verbatim blocks | Tables, bibliographies, code listings shown as-is, editable, never lost on export |
 | Command protection | `\cite`, `\ref`, and other reference commands preserved verbatim |
 | Image insertion | Enter a path to generate the `figure` float environment |
@@ -73,7 +73,7 @@ VisualLaTeX/
 ├── index.html    # Main page (layout, toolbar)
 ├── style.css     # Global styles
 ├── main.js       # Editor core, .tex parsing, DOM↔LaTeX conversion
-├── tests/        # Zero-dependency smoke checks (used by CI)
+├── tests/        # Zero-dependency smoke and import/export/editing regression checks
 ├── .github/      # GitHub Actions workflows (CI / release / Pages)
 ├── README.md     # Docs (Chinese)
 └── README.en.md  # Docs (English)
@@ -85,9 +85,19 @@ Automation is powered by GitHub Actions:
 
 | Workflow | Trigger | Purpose |
 |:---|:---|:---|
-| CI | push to `main` / PR to `main` | JS syntax check + zero-dependency smoke checks (assets, tag pairing, DOM id consistency) |
-| Build & Release | push `v*` version tag | Package `VisualLaTeX-vX.Y.Z.zip` and auto-upload to GitHub Release |
-| Deploy to GitHub Pages | push to `main` | Auto-deploy the [online demo](https://Escap1ng.github.io/VisualLaTeX/) |
+| CI | push or PR to `main` or `dev` | Syntax, asset integrity, and import/export/editing regression tests |
+| Build & Release | push `v*` version tag | Package and release only after checks pass on that commit |
+| Deploy to GitHub Pages | push to `main` | Deploy the [online demo](https://Escap1ng.github.io/VisualLaTeX/) only after checks pass on that commit |
+
+Run locally with Node.js 22+; no npm packages are needed:
+
+```bash
+node --check main.js
+node tests/smoke.mjs
+node --test
+```
+
+Regression checks cover HTML injection, source round trips, local edits, formulas, images, escaping, and draft recovery. DOM checks use a minimal model; they do not replace real browser interaction or TeX compilation tests.
 
 ## Recommended Workflow
 
@@ -96,9 +106,9 @@ Import the `.tex` you want to touch up → make visual text and structure adjust
 <details>
 <summary><b>Known Limitations</b></summary>
 
-1. Built on `contenteditable` for simplicity; complex nested layouts may parse incorrectly
+1. Built on `contenteditable`; complex editing behavior still needs validation in individual browsers
 2. No visual table editing (tables are edited as source inside verbatim blocks)
-3. Edge cases such as nested same-name environments (e.g., itemize inside itemize) may not parse perfectly
+3. Complex/nested environments, multiple images, custom list labels, and `equation` environments use editable source blocks; TeX macros are not expanded
 4. This is a light editing tool; for large-scale rewrites, use a code editor
 
 </details>

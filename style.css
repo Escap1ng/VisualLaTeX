@@ -231,6 +231,7 @@ body {
 
 /* 行间公式（暖纸底 + 强调色左边线） */
 .editor-area .formula-block {
+    display: block;
     background: var(--surface-soft);
     padding: 12px;
     border-radius: var(--radius);
