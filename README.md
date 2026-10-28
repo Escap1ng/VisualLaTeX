@@ -2,7 +2,7 @@
 
 # VisualLaTeX
 
-**导入 · 轻改 · 导出 —— 一个字符都不丢的离线 LaTeX 轻编辑器**
+**导入 · 轻改 · 导出 —— 保留原文的离线 LaTeX 轻编辑器**
 
 [![Version](https://img.shields.io/badge/Version-v2.0.2-6f42c1)](https://github.com/Escap1ng/VisualLaTeX/releases)
 [![License](https://img.shields.io/badge/License-Apache_2.0-0366d6)](./LICENSE)
@@ -31,14 +31,14 @@
 | 场景 | 传统代码编辑器 | VisualLaTeX |
 |:---|:---|:---|
 | 小改动效率 | 在源码中手动定位结构 | 所见即所得，直接点改 |
-| 误改风险 | 容易碰坏命令与环境 | 复杂结构原样锁存，零风险 |
+| 误改风险 | 容易碰坏命令与环境 | 未编辑的源码块保留原文，复杂结构使用原文块 |
 | 上手成本 | 需熟悉 LaTeX 语法 | 会用 Word 就会用 |
 
 ## 核心工作流
 
 **导入 `.tex` → 可视化轻改 → 导出 `.tex`**
 
-修改只发生在你改动的地方，其余内容逐字符原样保留，全程离线。
+未编辑的源码块按原文保留，包括注释、空白与换行；编辑过的区段重新生成 LaTeX。无法安全转换的结构以可编辑原文块保留，全程离线。
 
 ## 功能一览
 
@@ -47,7 +47,7 @@
 | 一键导入 | 打开本地 `.tex`，章节、段落、列表、公式、图片自动转为可视化元素 |
 | 双栏同屏 | 左侧可视化编辑，右侧 LaTeX 源码实时预览 |
 | 基础排版 | 三级标题、加粗、斜体、居中、有序/无序列表 |
-| 公式输入 | 30+ 符号快捷面板，支持行内 `$...$` 与行间 `$$...$$` |
+| 公式输入 | 30+ 符号快捷面板，支持 `$...$`、`$$...$$`、`\(...\)`、`\[...\]`；双击已有可视化公式可修改 |
 | 原样保留块 | 表格、参考文献、代码清单等复杂结构原文展示、可编辑、导出不丢失 |
 | 命令保护 | `\cite`、`\ref` 等引用命令原样保留，绝不被转义破坏 |
 | 图片插入 | 填写路径自动生成 `figure` 浮动环境 |
@@ -73,7 +73,7 @@ VisualLaTeX/
 ├── index.html    # 主页面（布局、工具栏）
 ├── style.css     # 全局样式
 ├── main.js       # 编辑器核心、.tex 解析、DOM↔LaTeX 转换
-├── tests/        # 零依赖冒烟检查（CI 使用）
+├── tests/        # 零依赖冒烟检查与导入/导出/编辑回归测试
 ├── .github/      # GitHub Actions 工作流（CI / 自动发布 / Pages 部署）
 ├── README.md     # 项目说明（中文）
 └── README.en.md  # 项目说明（English）
@@ -85,9 +85,19 @@ VisualLaTeX/
 
 | 工作流 | 触发时机 | 作用 |
 |:---|:---|:---|
-| CI | 推送 `main` / 针对 `main` 的 PR | JS 语法检查 + 零依赖冒烟检查（资源完整、标签配对、DOM id 一致性） |
-| Build & Release | 推送 `v*` 版本标签 | 打包 `VisualLaTeX-vX.Y.Z.zip` 并自动上传至 GitHub Release |
-| Deploy to GitHub Pages | 推送 `main` | 自动部署[在线预览版](https://Escap1ng.github.io/VisualLaTeX/) |
+| CI | 推送 `main`、`dev` / 针对这两个分支的 PR | JS 语法、资源完整性及导入/导出/编辑回归测试 |
+| Build & Release | 推送 `v*` 版本标签 | 同一提交检查通过后打包并上传 GitHub Release |
+| Deploy to GitHub Pages | 推送 `main` | 同一提交检查通过后部署[在线预览版](https://Escap1ng.github.io/VisualLaTeX/) |
+
+本地验证（Node.js 22+，无需安装 npm 包）：
+
+```bash
+node --check main.js
+node tests/smoke.mjs
+node --test
+```
+
+回归测试覆盖 HTML 注入防护、源码往返、局部编辑、公式、图片、转义字符及草稿恢复。DOM 测试使用最小模型，不替代真实浏览器交互或 TeX 编译验证。
 
 ## 推荐工作流
 
@@ -96,9 +106,9 @@ VisualLaTeX/
 <details>
 <summary><b>已知限制</b></summary>
 
-1. 基于 `contenteditable` 简易富文本实现，复杂嵌套排版容易解析出错
+1. 基于 `contenteditable`，不同浏览器的复杂编辑行为仍需实际验证
 2. 不支持可视化表格编辑（表格以原样保留块形式编辑源码）
-3. 嵌套同名环境（如 itemize 套 itemize）等极端结构可能解析不完美
+3. 复杂/嵌套环境、多图、带自定义标签的列表及 `equation` 环境以原文块编辑；不执行 TeX 宏展开
 4. 定位是轻量修改工具，大规模重写建议直接使用代码编辑器
 
 </details>

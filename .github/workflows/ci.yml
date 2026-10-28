@@ -2,15 +2,18 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
-    branches: [main]
+    branches: [main, dev]
 
 jobs:
   check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
 
       # JS 语法检查（等效于 compileall）
       - name: JS 语法检查
@@ -19,3 +22,6 @@ jobs:
       # 无头冒烟检查：资源完整、标签配对、DOM id 一致性
       - name: 冒烟检查
         run: node tests/smoke.mjs
+
+      - name: 导入、导出与编辑回归测试
+        run: node --test

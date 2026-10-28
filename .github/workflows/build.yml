@@ -13,6 +13,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: JS 语法检查
+        run: node --check main.js
+
+      - name: 冒烟检查
+        run: node tests/smoke.mjs
+
+      - name: 导入、导出与编辑回归测试
+        run: node --test
+
       # 纯静态项目无运行时依赖，无需安装
       - name: 打包项目为 zip
         shell: pwsh
@@ -22,6 +35,7 @@ jobs:
           New-Item -ItemType Directory -Path $name -Force | Out-Null
           Copy-Item index.html, style.css, main.js, LICENSE, README.md, README.en.md -Destination $name
           Copy-Item screenshots -Destination $name -Recurse
+          Copy-Item tests -Destination $name -Recurse
           Compress-Archive -Path $name -DestinationPath "$name.zip"
 
       - name: 发布到 GitHub Release
