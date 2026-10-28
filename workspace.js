@@ -324,6 +324,7 @@ function initWorkspace() {
     updatePreview = function() { if (!app.loading) { app.changed(false); scheduleSave(); } };
     saveDraft = function() { return !app.loading && app.persist(); };
     initFormulaModal();
+    const referenceEditor = globalThis.initVisualReferences?.(app, editorArea, {insertSource: sourceEdit});
     editorArea.addEventListener('mouseup', saveEditorSelection);
     editorArea.addEventListener('keyup', saveEditorSelection);
     editorArea.addEventListener('input', safely(() => { app.changed(true); scheduleSave(); }));
@@ -381,7 +382,28 @@ function initWorkspace() {
         $('referenceList').replaceChildren();
         const refs = app.model.references();
         for (const item of [...refs.labels, ...refs.bibliography, ...refs.citations, ...(refs.references || [])]) {
-            $('referenceList').appendChild(button(item.key + ' · ' + item.path, () => jump(item.path, item.offset), 'reference-item'));
+            $('referenceList').appendChild(button(item.key + ' · ' + item.path, () => {
+                app.switchFile(item.path);
+                if (referenceEditor && app.mode === 'visual') {
+                    const source = app.model.get().text;
+                    const offset = source.slice(0, item.offset).replace(/\r\n?/g, '\n').length;
+                    const token = Array.from(editorArea.querySelectorAll('.tex-cmd')).find(node => locateWorkspaceToken(editorArea, node, source) === offset);
+                    if (token && referenceEditor.open(token)) { app.revealEditor?.(); return; }
+                    if (refs.labels.includes(item)) {
+                        const formula = Array.from(editorArea.querySelectorAll('.formula-inline, .formula-block')).find(node => {
+                            const latex = node.getAttribute('data-formula') || '';
+                            const labels = globalThis.VisualMath?.split ? globalThis.VisualMath.split(latex).metadata
+                                : Array.from(latex.matchAll(/\\label\s*\{([^{}\s]+)\}/g), match => ({kind: 'label', value: match[1]}));
+                            return labels.some(entry => entry.kind === 'label' && entry.value === item.key);
+                        });
+                        if (formula) {
+                            openFormulaModal(formula.classList.contains('formula-block') ? 'block' : 'inline', formula);
+                            app.revealEditor?.(); return;
+                        }
+                    }
+                }
+                jump(item.path, item.offset);
+            }, 'reference-item'));
         }
         if (!$('referenceList').childNodes.length) $('referenceList').textContent = '添加 \\label 或 BibTeX 条目后，可在这里定位。';
     }
@@ -389,6 +411,10 @@ function initWorkspace() {
         const file = app.model.get();
         const text = file && file.kind === 'text';
         const language = file ? ProjectModel.language(file.path) : 'text';
+        if (app.mode === 'visual') {
+            globalThis.renderVisualReferences?.(editorArea, app);
+            globalThis.renderVisualMath?.(editorArea);
+        }
         $('currentPath').textContent = file ? file.path : '选择或新建文件';
         $('languageBadge').textContent = file && file.kind === 'binary' ? '资源' : {latex: 'LaTeX', bibtex: 'BibTeX', postscript: 'PostScript', text: '文本'}[language];
         // An editor render can happen before a name input loses focus and emits
@@ -485,6 +511,7 @@ function initWorkspace() {
     editorArea.addEventListener('dblclick', safely(event => {
         const token = event.target.closest && event.target.closest('.tex-cmd');
         if (!token) return;
+        if (referenceEditor && globalThis.VisualReferences.describe(token.getAttribute('data-tex-source') || token.textContent, app.model)) return;
         app.sync();
         const source = convertNodeToLatex(token).replace(/\r\n?/g, '\n');
         const offset = locateWorkspaceToken(editorArea, token, app.model.get().text);
@@ -496,6 +523,7 @@ function initWorkspace() {
     }));
 
     async function insertReference(kind) {
+        if (referenceEditor) { referenceEditor.insert(kind); return; }
         app.setMode('source', {remember: false});
         const refs = app.model.references();
         const first = kind === 'cite' ? refs.bibliography[0] : refs.labels[0];

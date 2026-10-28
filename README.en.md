@@ -2,11 +2,11 @@
 
 **Import a document, edit it visually, then export—with multiple files, PostScript and local PDF compilation.**
 
-This workspace edition continues [Escap1ng/VisualLaTeX](https://github.com/Escap1ng/VisualLaTeX)'s purpose of visually modifying existing LaTeX documents, adding full source access, multiple files, references, bibliography entries, ZIP projects and real compilation. No npm packages or build step are required. Compilation uses Node.js 22+ and a local typesetting toolchain.
+This workspace edition continues [Escap1ng/VisualLaTeX](https://github.com/Escap1ng/VisualLaTeX)'s purpose of visually modifying existing LaTeX documents, adding full source access, multiple files, references, bibliography entries, ZIP projects and real compilation. It bundles MathLive 0.111.1 (MIT) and its fonts for formula editing. Offline editing needs no npm installation or build step. Compilation uses Node.js 22+ and a local typesetting toolchain.
 
-**Complete LaTeX documents open in Visual editing by default.** Edit text and headings directly, use the formatting toolbar, and double-click formulas to edit them. Keep untouched source intact while making changes. The current session remembers the selected editing mode for each file.
+**Complete LaTeX documents open in Visual editing by default.** Edit text and headings directly and use the formatting toolbar. Click a typeset formula to edit fractions, superscripts and subscripts in a graphical math field. References and labels appear as readable items that open an editor when clicked, without switching to source. Untouched source stays intact, and the current session remembers the selected editing mode for each file.
 
-Source editing remains available for preambles, macros, references and complex structures. Bibliography files, PostScript, TeX fragments and incomplete documents use source editing without forced visual conversion. PostScript supports source editing and rendering; arbitrary PS graphics cannot yet be modified as visual objects.
+Source editing remains available for preambles, custom macros and complex structures. Bibliography files, PostScript, TeX fragments and incomplete documents use source editing without forced visual conversion. PostScript supports source editing and rendering; arbitrary PS graphics cannot yet be modified as visual objects.
 
 ## Start
 
@@ -42,8 +42,8 @@ Tectonic downloads missing TeX support files on first use and caches them for la
 ### Editing and PDF output
 
 - Add individual files, open a project folder, or import a ZIP project.
-- Complete LaTeX documents open in Visual editing: modify text and headings directly, use the formatting toolbar, or double-click formulas.
-- Switch to Source editing for preambles, macros, references and complex commands, then return to visual editing. Fragments, BibTeX, PostScript and EPS text remain directly editable source.
+- Complete LaTeX documents open in Visual editing: modify text and headings directly, use the formatting toolbar, or click formulas, references and labels to edit them.
+- Switch to Source editing for preambles, custom macros and complex structures, then return to visual editing. Fragments, BibTeX, PostScript and EPS text remain directly editable source.
 - Download one file or export the entire project as ZIP, including binary resources and changes in inactive files.
 - Select the complete LaTeX main document or a PS/EPS file, then compile/render with the button or Ctrl/Cmd+Enter.
 - Inspect the generated PDF and export it. The PDF pane displays the result; modify content in the editor. Running tasks can be cancelled; errors retain engine logs for diagnosis.
@@ -60,10 +60,11 @@ Opening a folder or project replaces the current workspace after confirmation. A
 
 | Feature | Support |
 | --- | --- |
-| Visual editing | Default for complete LaTeX documents; edit text, headings, formatting, lists and formulas |
+| Visual editing | Default for complete LaTeX documents; edit text, headings, formatting, lists, formulas, references and labels |
+| Graphical math | Typeset formulas with click-to-edit fractions and scripts; inline/display math and equation, align and gather environments, including starred variants |
 | Source files | TeX, LaTeX, STY, CLS, BIB, PS, EPS and UTF-8 text with custom extensions |
 | Project management | Create, rename, delete, select main file and preserve relative paths |
-| References | Navigate labels, citation locations and BibTeX entries; insert cite/ref/label and add entries |
+| References | Readable, clickable cite/ref/label items; select project labels and BibTeX entries, edit keys and optional notes, and add bibliography entries |
 | Find and replace | Current-file search, wrap-around, replace one/all and case sensitivity |
 | History | Independent per-file undo/redo for source and visual changes |
 | PostScript | PS/text EPS source, page/procedure outline, templates, UTF-8 and Latin-1; no arbitrary PS graphics object editing |
@@ -74,7 +75,9 @@ Opening a folder or project replaces the current workspace after confirmation. A
 | PostScript rendering | Ghostscript converts PS/EPS to PDF; EPS uses BoundingBox cropping |
 | PDF output | Target selection, preview, cancellation, logs, stale-result tracking and current-source export |
 
-Double-click a protected visual command to locate its editable source; double-click a formula to edit it. Unsupported visual structures remain editable raw TeX. New `main.tex` files have a document template; other TeX files start empty for use as fragments.
+Reference displays use section titles, label keys and BibTeX metadata such as authors, titles and years to identify targets. They do not claim to show compiled citation numbers or page numbers. The compiled PDF determines final numbering, bibliography style and typesetting.
+
+The formula dialog provides graphical math input and fields for labels and explicit tags. Formula delimiters, environment names and unchanged source are preserved; labels and tags in multiline formulas remain associated with their rows. Use the dialog's advanced input or Source editing for custom macros and complex expressions unsupported by the renderer. Other unsupported visual structures remain editable raw TeX. New `main.tex` files have a document template; other TeX files start empty for use as fragments.
 
 Shortcuts: Ctrl/Cmd+S saves locally, Ctrl/Cmd+F opens find/replace, Ctrl/Cmd+Z undoes, Ctrl/Cmd+Shift+Z or Ctrl+Y redoes, Ctrl/Cmd+Enter compiles/renders, and Tab inserts two spaces. The encoding button explicitly switches UTF-8/Latin-1; unencodable characters are rejected rather than replaced.
 
@@ -97,6 +100,9 @@ Node.js 22+, no npm installation:
 ```bash
 node --check main.js
 node --check workspace.js
+node --check visual-math.js
+node --check visual-references.js
+node --check visual-references-ui.js
 node --check preview.js
 node --check compiler.mjs
 node --check server.mjs
@@ -104,12 +110,14 @@ node tests/smoke.mjs
 node --test
 ```
 
-Tests exercise actual functions and UI event handlers, compiler process orchestration, loopback service boundaries, cancellation and stale results. Regular tests use simulated engines and do not need the toolchain. The minimal DOM model does not verify browser layout or actual TeX/PS typesetting. CI checks `main`/`dev`; publishing and deployment wait for checks. GitHub Pages serves only the static editor.
+Tests exercise actual functions and UI event handlers, compiler process orchestration, loopback service boundaries, cancellation and stale results. New regressions cover display-only formula/reference changes preserving source, edits confined to the selected reference command, math delimiters, environments and labels, legacy draft snapshot migration, visual reference interactions, and the local server's script/font allowlist. Regular tests use simulated engines and do not need the toolchain. The minimal DOM model does not verify browser layout or actual TeX/PS typesetting. CI checks `main`/`dev`; publishing and deployment wait for checks. GitHub Pages serves only the static editor.
+
+The pinned MathLive scripts, styles, fonts and license are in `vendor/mathlive/`. Its [manifest.json](vendor/mathlive/manifest.json) records the version, download source, package integrity and each file's SHA-256. These assets load locally without a CDN.
 
 See the [browser acceptance checklist](tests/browser-acceptance.md) for manual end-to-end validation. Actual engine validation in this iteration used Tectonic and Ghostscript; the XeLaTeX path has not yet been verified against a real distribution.
 
-`workspace.js` coordinates editing, `project-model.js` owns canonical source/history/indexes, and `project-archive.js` handles ZIP. `preview.js` manages PDF state and export; `compiler.mjs` and `server.mjs` run the local compilation service, while `pdf-preview.mjs` renders bounded page images. `setup-windows.ps1` and `start.ps1` prepare portable tools and start the service. The original `main.js` remains the visual LaTeX conversion core.
+`workspace.js` coordinates editing, `project-model.js` owns canonical source/history/indexes, and `project-archive.js` handles ZIP. `visual-math.js`/`.css` adapt MathLive for formula rendering and editing; `visual-references*.js`/`.css` provide reference semantics, readable displays and editing dialogs. `preview.js` manages PDF state and export; `compiler.mjs` and `server.mjs` run the local compilation service, while `pdf-preview.mjs` renders bounded page images. `setup-windows.ps1` and `start.ps1` prepare portable tools and start the service. The original `main.js` remains the visual LaTeX conversion core.
 
 ## License
 
-[Apache-2.0](LICENSE). Based on the original project by Escap1ng.
+Project code uses [Apache-2.0](LICENSE), based on the original project by Escap1ng. Bundled MathLive 0.111.1 uses the [MIT license](vendor/mathlive/LICENSE.txt); its notice is included in the source archive.

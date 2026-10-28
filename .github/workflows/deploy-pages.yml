@@ -29,7 +29,7 @@ jobs:
 
       - name: 验证待部署的同一提交
         run: |
-          for file in main.js workspace.js project-model.js project-archive.js preview.js compiler.mjs pdf-preview.mjs server.mjs; do
+          for file in main.js workspace.js project-model.js project-archive.js preview.js visual-math.js visual-references.js visual-references-ui.js vendor/mathlive/mathlive.min.js compiler.mjs pdf-preview.mjs server.mjs; do
             node --check "$file"
           done
           node tests/smoke.mjs
@@ -41,7 +41,8 @@ jobs:
       - name: 准备静态编辑器
         run: |
           mkdir site
-          cp index.html style.css workspace.css preview.css main.js workspace.js project-model.js project-archive.js preview.js LICENSE site/
+          cp index.html style.css workspace.css preview.css visual-math.css visual-references-ui.css main.js workspace.js project-model.js project-archive.js preview.js visual-math.js visual-references.js visual-references-ui.js LICENSE site/
+          cp -R vendor site/
 
       - name: 上传站点产物
         uses: actions/upload-pages-artifact@v3

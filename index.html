@@ -7,6 +7,8 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="workspace.css">
     <link rel="stylesheet" href="preview.css">
+    <link rel="stylesheet" href="visual-references-ui.css">
+    <link rel="stylesheet" href="visual-math.css">
 </head>
 <body class="workspace-app">
     <div class="container">
@@ -122,7 +124,7 @@
                 </div>
 
                 <div id="visualPanel" class="visual-panel">
-                    <div id="visualEditingHelp" class="mode-note">直接修改下面的文字与标题，用工具栏调整格式，双击公式编辑。复杂命令可在「源码编辑」中补充。</div>
+                    <div id="visualEditingHelp" class="mode-note">直接修改文字与标题；点击公式、文献引用或标签即可编辑，按 Enter 也可打开。</div>
                     <div id="editorArea" class="editor-area" contenteditable="true" role="textbox" aria-label="LaTeX 可视化编辑区" aria-describedby="visualEditingHelp" aria-multiline="true"></div>
                 </div>
 
@@ -153,7 +155,7 @@
                         <button id="btnAddBibEntry" type="button">新增文献条目</button>
                     </div>
                     <div id="referenceList" class="context-list" aria-label="项目中的标签与参考文献"></div>
-                    <p class="sidebar-note">引用键和文献条目可在源码中直接修改。</p>
+                    <p class="sidebar-note">点击正文中的引用或标签直接编辑。引用显示项目中的标题和文献信息，最终编号以编译结果为准。</p>
                 </section>
             </aside>
 
@@ -215,14 +217,36 @@
             <div class="modal-body">
                 <div class="tab-panel active" id="tab-input">
                     <div class="formula-mode-row">
-                        <label class="mode-option"><input type="radio" name="formulaMode" value="inline" checked><span>行内公式 <code>$...$</code></span></label>
-                        <label class="mode-option"><input type="radio" name="formulaMode" value="block"><span>行间公式 <code>$$...$$</code></span></label>
+                        <label class="mode-option"><input type="radio" name="formulaMode" value="inline" checked><span>行内公式</span></label>
+                        <label class="mode-option"><input type="radio" name="formulaMode" value="block"><span>行间公式</span></label>
                     </div>
                     <div class="symbol-palette" id="symbolPalette"></div>
-                    <label class="visually-hidden" for="formulaInput">LaTeX 公式</label>
-                    <textarea id="formulaInput" rows="4" spellcheck="false" placeholder="输入 LaTeX 公式，例如 \frac{x}{y} 或 E=mc^2"></textarea>
+                    <math-field id="formulaMathField" aria-label="可视化公式编辑器" math-virtual-keyboard-policy="manual"></math-field>
+                    <p class="formula-help">直接点击公式中的数字、分子、分母或上下标修改；上方按钮可插入数学结构。</p>
+                    <div id="formulaMetadata"></div>
+                    <p id="formulaError" role="alert"></p>
+                    <details class="formula-advanced"><summary>高级 LaTeX 输入（可选）</summary>
+                        <label class="visually-hidden" for="formulaInput">LaTeX 公式</label>
+                        <textarea id="formulaInput" rows="4" spellcheck="false" placeholder="LaTeX 公式"></textarea>
+                    </details>
                     <div class="modal-actions"><button class="btn-insert" id="btnInsertFormula" type="button">插入公式</button></div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="referenceModal" class="workspace-dialog-overlay" hidden>
+        <div class="workspace-dialog reference-dialog" role="dialog" aria-modal="true" aria-labelledby="referenceTitle" aria-describedby="referenceHint">
+            <h2 id="referenceTitle">编辑引用</h2>
+            <p id="referenceHint" class="reference-hint"></p>
+            <label for="referenceChoice">从项目中选择</label>
+            <select id="referenceChoice"></select>
+            <label id="referenceKeysLabel" for="referenceKeys">名称</label>
+            <input id="referenceKeys" type="text" autocomplete="off" spellcheck="false" aria-describedby="referenceHint referenceError">
+            <p id="referenceError" class="reference-error" role="alert" aria-live="polite"></p>
+            <div class="workspace-dialog-actions">
+                <button id="referenceCancel" type="button">取消</button>
+                <button id="referenceAccept" type="button">保存</button>
             </div>
         </div>
     </div>
@@ -239,9 +263,13 @@
         </div>
     </div>
 
+    <script src="vendor/mathlive/mathlive.min.js"></script>
+    <script src="visual-math.js"></script>
     <script src="main.js"></script>
     <script src="project-model.js"></script>
     <script src="project-archive.js"></script>
+    <script src="visual-references.js"></script>
+    <script src="visual-references-ui.js"></script>
     <script src="workspace.js"></script>
     <script src="preview.js"></script>
 </body>

@@ -1,0 +1,15 @@
+.editor-area .formula-inline,.editor-area .formula-block { cursor:pointer; white-space:normal; font-family:inherit; color:inherit; background:#f2f7fc; border:1px solid transparent; border-radius:5px; }
+.editor-area .formula-inline { display:inline-block; padding:2px 5px; vertical-align:middle; }
+.editor-area .formula-block { display:block; padding:14px; text-align:center; margin:14px 0; overflow-x:auto; }
+.editor-area .formula-inline:hover,.editor-area .formula-block:hover,.editor-area .formula-inline:focus-visible,.editor-area .formula-block:focus-visible { border-color:#4385ca; outline:2px solid #4385ca33; }
+.visual-math-content { pointer-events:none; font-size:1.1em; }
+.visual-math-label { display:block; font:11px/1.5 system-ui,sans-serif; color:#64748b; margin-top:5px; }
+#formulaMathField { display:block; min-height:96px; padding:14px; font-size:26px; border:1px solid #a4b7cf; border-radius:8px; background:white; }
+#formulaMathField::part(menu-toggle) { display:none; }
+.formula-help { color:#64748b; font-size:12px; margin:8px 0 12px; }
+#formulaMetadata label { display:block; font-size:13px; margin:10px 0; }
+#formulaMetadata input { display:block; box-sizing:border-box; width:100%; margin-top:5px; padding:8px; border:1px solid #cbd5e1; border-radius:5px; }
+#formulaError { color:#b42318; font-size:13px; }
+.formula-advanced { margin-top:14px; font-size:12px; color:#64748b; }
+.formula-advanced textarea { width:100%; box-sizing:border-box; margin-top:8px; }
+body .ML__keyboard { z-index:1100; }

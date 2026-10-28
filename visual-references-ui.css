@@ -1,0 +1,21 @@
+.editor-area .tex-cmd[data-visual-reference] {
+    display: inline-block; max-width: 100%; box-sizing: border-box; vertical-align: baseline;
+    padding: 2px 6px; border: 1px solid #d1dfe4; border-radius: 5px;
+    background: #eef5f7; color: #285363; font-family: inherit; font-size: .85em;
+    line-height: 1.8; white-space: normal; overflow-wrap: anywhere; cursor: pointer;
+    -webkit-user-select: none; user-select: none; box-decoration-break: clone;
+}
+.editor-area .tex-cmd[data-visual-reference="label"] { background: #f4f1e6; border-color: #e1d9b9; color: #6c591d; }
+.editor-area .tex-cmd[data-visual-reference="citation"] { background: #eef3eb; border-color: #d5e1cc; color: #3e5f31; }
+.editor-area .tex-cmd[data-visual-reference]:focus-visible { outline: 2px solid #157f91; outline-offset: 3px; }
+.editor-area .tex-cmd[data-visual-reference]:hover { filter: brightness(.97); }
+.editor-area .tex-cmd[data-visual-reference][role="note"] { cursor: default; }
+#referenceModal[hidden] { display: none; }
+.reference-dialog { width: min(560px, 100%); }
+.reference-dialog .reference-hint { margin: 0 0 20px; color: #586b76; line-height: 1.65; }
+.reference-dialog label { margin: 16px 0 7px; font-size: 14px; font-weight: 600; }
+.reference-dialog select { width: 100%; min-height: 42px; padding: 8px 11px; border: 1px solid #91a3b1; border-radius: 6px; background: #fff; color: #203447; font: inherit; }
+.reference-dialog select:disabled { color: #687780; background: #f4f6f7; }
+.reference-dialog .reference-error { min-height: 1.5em; margin: 10px 0 0; color: #ae3232; font-size: 14px; }
+.reference-dialog input[aria-invalid="true"] { border-color: #ae3232; }
+.reference-dialog #referenceAccept { background: #20576b; border-color: #20576b; color: #fff; }

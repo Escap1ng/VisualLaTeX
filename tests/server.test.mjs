@@ -46,6 +46,35 @@ test('loopback service serves only the UI assets and keeps compiler paths privat
     }
 });
 
+test('visual editor modules and bundled math fonts have usable MIME types without exposing other vendor files', async t => {
+    const f = await fixture(t);
+    for (const path of ['/visual-math.js', '/visual-references.js', '/visual-references-ui.js', '/vendor/mathlive/mathlive.min.js']) {
+        const response = await fetch(f.url + path);
+        assert.equal(response.status, 200, path);
+        assert.equal(response.headers.get('content-type'), 'text/javascript; charset=utf-8', path);
+        assert.ok((await response.text()).length > 0, path);
+    }
+    for (const path of ['/visual-math.css', '/visual-references-ui.css', '/vendor/mathlive/mathlive-static.css', '/vendor/mathlive/mathlive-fonts.css']) {
+        const response = await fetch(f.url + path);
+        assert.equal(response.status, 200, path);
+        assert.equal(response.headers.get('content-type'), 'text/css; charset=utf-8', path);
+        assert.ok((await response.text()).length > 0, path);
+    }
+    const font = await fetch(f.url + '/vendor/mathlive/fonts/KaTeX_Main-Regular.woff2');
+    assert.equal(font.status, 200);
+    assert.equal(font.headers.get('content-type'), 'font/woff2');
+    assert.equal(Buffer.from(await font.arrayBuffer()).subarray(0, 4).toString('ascii'), 'wOF2');
+    const head = await fetch(f.url + '/vendor/mathlive/fonts/KaTeX_Math-Italic.woff2', {method: 'HEAD'});
+    assert.equal(head.status, 200);
+    assert.ok(Number(head.headers.get('content-length')) > 0);
+    assert.equal((await head.arrayBuffer()).byteLength, 0);
+    for (const path of ['/vendor/mathlive/', '/vendor/mathlive/manifest.json', '/vendor/mathlive/LICENSE.txt',
+        '/vendor/mathlive/fonts/not-in-manifest.woff2', '/vendor/mathlive/private.js',
+        '/vendor/mathlive/fonts/..%2f..%2f..%2fserver.mjs', '/vendor/mathlive/fonts/%2e%2e%5cserver.mjs']) {
+        assert.equal((await fetch(f.url + path)).status, 404, path);
+    }
+});
+
 test('cross-origin requests, DNS-rebinding hosts and missing tokens cannot invoke compilers', async t => {
     const f = await fixture(t);
     assert.equal((await fetch(f.url + '/api/status', {headers: {Origin: 'https://evil.example'}})).status, 403);

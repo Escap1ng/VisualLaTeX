@@ -747,9 +747,18 @@ function parseTexToHtml(tex) {
         const env = readTexEnvironment(tex, i);
         if (env) {
             let visual = null;
+            const source = tex.slice(i, env.end);
+            if (env.complete && /^(?:equation|align|gather)\*?$/.test(env.name)) {
+                // Keep labels, tags, row breaks, comments and nested math in the
+                // semantic body. The visual editor must preserve this metadata.
+                visual = texSourceElement('div', source, escapeForHtml(source),
+                    ' class="formula-block" data-delimiter="environment" data-environment="' + escapeAttr(env.name) +
+                    '" data-formula="' + texSourceAttribute(tex.slice(env.innerStart, env.innerEnd)) +
+                    '" data-tex-env-open="' + texSourceAttribute(tex.slice(i, env.innerStart)) +
+                    '" data-tex-env-close="' + texSourceAttribute(tex.slice(env.innerEnd, env.end)) + '" contenteditable="false"');
+            }
             if (env.complete && (env.name === 'itemize' || env.name === 'enumerate')) visual = parseSimpleTexList(tex, env);
             if (env.complete && env.name === 'figure') visual = parseSimpleTexFigure(tex, env);
-            const source = tex.slice(i, env.end);
             html += visual || texSourceElement('div', source, escapeForHtml(source), ' class="raw-tex"');
             i = env.end;
             continue;
@@ -839,17 +848,40 @@ function hasTexPackage(preamble, packageName) {
 }
 
 // 同时检查内容和根节点属性：居中、标题级别或公式属性变化也必须使原文缓存失效。
-function getTexNodeSnapshot(node) {
+function getTexNodeSnapshot(node, legacyPresentation = false) {
     function describe(current) {
         if (current.nodeType !== Node.ELEMENT_NODE) return [current.nodeType, current.textContent];
+        // Atomic TeX nodes have editable semantics separate from their rendered
+        // presentation. Decorations must not invalidate an ancestor's source,
+        // while changing a command or formula must invalidate that ancestor.
+        if (!legacyPresentation && current.classList.contains('tex-cmd')) {
+            const source = current.getAttribute('data-tex-source');
+            return ['tex-cmd', source === null ? current.textContent : source];
+        }
+        if (!legacyPresentation && (current.classList.contains('formula-inline') || current.classList.contains('formula-block'))) {
+            return ['formula', current.classList.contains('formula-block') ? 'block' : 'inline',
+                current.getAttribute('data-formula'), current.getAttribute('data-delimiter'),
+                current.getAttribute('data-environment'), current.getAttribute('data-tex-env-open'),
+                current.getAttribute('data-tex-env-close')];
+        }
         const attributes = Array.from(current.attributes || [])
             .filter(function(attr) { return !attr.name.startsWith('data-tex-'); })
             .map(function(attr) { return [attr.name, attr.value]; })
             .sort(function(a, b) { return a[0].localeCompare(b[0]); });
         return [current.tagName.toLowerCase(), attributes, Array.from(current.childNodes).map(describe)];
     }
-    // 不把子节点的原文和快照再次嵌进父快照，防止嵌套格式造成元数据膨胀。
+    // Ordinary containers exclude cached source/snapshots to avoid metadata growth.
     return JSON.stringify(describe(node));
+}
+
+function upgradeTexNodeSnapshots(root) {
+    for (const node of Array.from(root.querySelectorAll('[data-tex-snapshot]'))) {
+        // Only migrate a still-valid legacy cache. Replacing stale snapshots
+        // would discard edits by making the original source authoritative again.
+        if (node.getAttribute('data-tex-snapshot') === getTexNodeSnapshot(node, true)) {
+            node.setAttribute('data-tex-snapshot', getTexNodeSnapshot(node));
+        }
+    }
 }
 
 // 浏览器按 Enter 拆分段落时，不一定为新兄弟节点插入源文件的空白占位符。
@@ -907,11 +939,22 @@ function convertNodeToLatex(node) {
     const separator = source !== null ? '' : '\n\n';
     if (node.classList.contains('tex-whitespace')) return source || '';
     if (node.classList.contains('raw-tex')) return getRawTexContent(node);
-    if (node.classList.contains('tex-cmd')) return node.textContent;
+    if (node.classList.contains('tex-cmd')) return source === null ? node.textContent : source;
 
     if (node.classList.contains('formula-inline') || node.classList.contains('formula-block')) {
         const formula = node.getAttribute('data-formula') || '';
         const delimiter = node.getAttribute('data-delimiter');
+        const environment = node.getAttribute('data-environment');
+        if (delimiter === 'environment' && /^(?:equation|align|gather)\*?$/.test(environment || '')) {
+            const escapedName = environment.replace('*', '\\*');
+            const originalOpen = node.getAttribute('data-tex-env-open') || '';
+            const originalClose = node.getAttribute('data-tex-env-close') || '';
+            const open = new RegExp('^\\\\begin[ \\t\\r\\n]*\\{' + escapedName + '\\}$').test(originalOpen)
+                ? originalOpen : '\\begin{' + environment + '}';
+            const close = new RegExp('^\\\\end[ \\t\\r\\n]*\\{' + escapedName + '\\}$').test(originalClose)
+                ? originalClose : '\\end{' + environment + '}';
+            return open + formula + close;
+        }
         if (delimiter === '$$') return '$$' + formula + '$$';
         if (delimiter === '\\[') return '\\[' + formula + '\\]';
         if (delimiter === '\\(') return '\\(' + formula + '\\)';
@@ -1089,9 +1132,9 @@ function sanitizeDraftHtml(html) {
     template.innerHTML = html;
     const allowedTags = new Set(['P', 'DIV', 'SPAN', 'H1', 'H2', 'H3', 'UL', 'OL', 'LI', 'B', 'STRONG', 'I', 'EM', 'BR', 'IMG']);
     const allowedAttributes = new Set(['class', 'contenteditable', 'hidden', 'src', 'alt', 'align', 'title',
-        'data-caption', 'data-label', 'data-width', 'data-formula', 'data-delimiter',
+        'data-caption', 'data-label', 'data-width', 'data-formula', 'data-delimiter', 'data-environment',
         'data-placement', 'data-centering', 'data-has-caption', 'data-caption-tex', 'data-label-tex', 'data-item-label',
-        'data-tex-command', 'data-tex-source', 'data-tex-snapshot']);
+        'data-tex-command', 'data-tex-source', 'data-tex-snapshot', 'data-tex-env-open', 'data-tex-env-close']);
     for (const node of Array.from(template.content.querySelectorAll('*'))) {
         if (!allowedTags.has(node.tagName)) {
             if (/^(SCRIPT|STYLE|IFRAME|OBJECT|EMBED|SVG|MATH|TEMPLATE)$/.test(node.tagName)) node.remove();
@@ -1124,6 +1167,7 @@ function loadDraft() {
             const draft = JSON.parse(serialized);
             if (draft.version !== 1 || typeof draft.html !== 'string') throw new Error('草稿格式无效');
             editorArea.innerHTML = sanitizeDraftHtml(draft.html);
+            upgradeTexNodeSnapshots(editorArea);
             texPreamble = typeof draft.preamble === 'string' ? draft.preamble : null;
             texTail = typeof draft.tail === 'string' ? draft.tail : '';
             texDocumentOpen = typeof draft.open === 'string' ? draft.open : '\\begin{document}';
@@ -1137,6 +1181,7 @@ function loadDraft() {
 
         if (content !== null) {
             editorArea.innerHTML = sanitizeDraftHtml(content);
+            upgradeTexNodeSnapshots(editorArea);
             texPreamble = localStorage.getItem('visuellatex_preamble') || null;
             texTail = localStorage.getItem('visuellatex_tail') || '';
             importedFileName = localStorage.getItem('visuellatex_filename') || null;
@@ -1221,13 +1266,18 @@ function openFormulaModal(mode, formulaNode = null) {
 
     const radio = document.querySelector('input[name="formulaMode"][value="' + (mode || 'inline') + '"]');
     if (radio) radio.checked = true;
+    document.querySelectorAll('input[name="formulaMode"]').forEach(function(option) {
+        option.disabled = Boolean(editingFormulaNode && editingFormulaNode.getAttribute('data-delimiter') === 'environment');
+    });
 
     modal.classList.add('show');
+    if (typeof VisualMath !== 'undefined' && VisualMath.open(document.getElementById('formulaInput').value, editingFormulaNode)) return;
     document.getElementById('formulaInput').focus();
 }
 
 // 关闭公式弹窗
 function closeFormulaModal() {
+    if (typeof VisualMath !== 'undefined') VisualMath.close();
     document.getElementById('formulaModal').classList.remove('show');
     editingFormulaNode = null;
     document.getElementById('btnInsertFormula').textContent = '插入公式';
@@ -1252,6 +1302,7 @@ function renderSymbolPalette() {
 
 // 向公式输入框光标处插入符号
 function insertSymbolIntoTextarea(symbol) {
+    if (typeof VisualMath !== 'undefined' && VisualMath.insert(symbol)) return;
     const ta = document.getElementById('formulaInput');
     const start = ta.selectionStart;
     const end = ta.selectionEnd;
@@ -1262,7 +1313,13 @@ function insertSymbolIntoTextarea(symbol) {
 
 // 从手动输入插入公式
 function insertFormulaFromInput() {
-    const latex = document.getElementById('formulaInput').value;
+    let latex;
+    try { latex = typeof VisualMath !== 'undefined' ? VisualMath.value() : document.getElementById('formulaInput').value; }
+    catch (problem) {
+        const error = document.getElementById('formulaError');
+        if (error) error.textContent = problem.message;
+        updateStatus(problem.message); return;
+    }
     if (!latex.trim()) {
         updateStatus('请输入公式内容');
         return;
@@ -1281,6 +1338,10 @@ function insertFormulaFromInput() {
         const delimiter = old.getAttribute('data-delimiter');
         if (mode === oldMode && delimiter) {
             replacement.setAttribute('data-delimiter', delimiter);
+            ['data-environment','data-tex-env-open','data-tex-env-close'].forEach(function(name) {
+                const value = old.getAttribute(name);
+                if (value !== null) replacement.setAttribute(name, value);
+            });
             const close = delimiter === '\\(' ? '\\)' : delimiter === '\\[' ? '\\]' : delimiter;
             replacement.textContent = delimiter + latex + close;
         } else if (mode === oldMode && mode === 'block') {
@@ -1289,6 +1350,7 @@ function insertFormulaFromInput() {
         }
         // 新节点不携带旧源码快照，祖先的快照比较也会检测到此次修改。
         old.parentNode.replaceChild(replacement, old);
+        if (typeof renderVisualMath === 'function') renderVisualMath(editorArea);
         updatePreview();
         if (saveDraft()) updateStatus('公式已更新');
     } else {
@@ -1315,6 +1377,7 @@ function insertFormulaNode(latex, type) {
     const node = document.createElement('span');
     configureFormulaNode(node, latex, type);
     if (!insertNodeAtCursor(node)) return;
+    if (typeof renderVisualMath === 'function') renderVisualMath(editorArea);
     updatePreview();
     if (saveDraft()) updateStatus('公式已插入');
 }
@@ -1344,14 +1407,19 @@ function restoreEditorSelection() {
 // 初始化公式弹窗
 function initFormulaModal() {
     renderSymbolPalette();
+    if (typeof VisualMath !== 'undefined') VisualMath.initialize();
 
-    editorArea.addEventListener('dblclick', function(e) {
+    function editFormula(e) {
+        if (e.type === 'keydown' && e.key !== 'Enter' && e.key !== ' ') return;
         const target = e.target.nodeType === Node.ELEMENT_NODE ? e.target : e.target.parentElement;
         const formula = target && target.closest ? target.closest('.formula-inline, .formula-block') : null;
         if (!formula || !editorArea.contains(formula)) return;
         e.preventDefault();
         openFormulaModal(formula.classList.contains('formula-block') ? 'block' : 'inline', formula);
-    });
+    }
+    editorArea.addEventListener('click', editFormula);
+    editorArea.addEventListener('dblclick', editFormula);
+    editorArea.addEventListener('keydown', editFormula);
 
     // 关闭按钮
     document.getElementById('formulaModalClose').addEventListener('click', closeFormulaModal);
@@ -1359,6 +1427,22 @@ function initFormulaModal() {
     // 点击遮罩关闭
     document.getElementById('formulaModal').addEventListener('click', function(e) {
         if (e.target === this) closeFormulaModal();
+    });
+    document.getElementById('formulaModal').addEventListener('keydown', function(e) {
+        // Keep document shortcuts out of the formula draft. Ctrl+S commits the
+        // formula itself; native MathLive undo remains inside the mathfield.
+        e.stopPropagation();
+        if (e.key === 'Escape') { e.preventDefault(); closeFormulaModal(); }
+        else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+            e.preventDefault(); insertFormulaFromInput();
+        } else if (e.key === 'Tab' && this.querySelectorAll) {
+            const fields = Array.from(this.querySelectorAll('button,input,textarea,summary,math-field'))
+                .filter(function(field) { return !field.disabled && field.getClientRects && field.getClientRects().length; });
+            if (!fields.length) return;
+            const first = fields[0], last = fields[fields.length-1];
+            if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+            else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+        }
     });
 
     // 插入按钮
