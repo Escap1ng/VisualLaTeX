@@ -3,135 +3,193 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VisualLaTeX - 离线 LaTeX 轻编辑器</title>
+    <title>VisualLaTeX Studio · LaTeX 与 PostScript 工作台</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="workspace.css">
 </head>
-<body>
+<body class="workspace-app">
     <div class="container">
-        <!-- 顶部标题栏 -->
-        <div class="header">
-            <h1>VisualLaTeX · 离线 LaTeX 轻编辑器</h1>
-            <p>导入 .tex 文件，可视化轻量修改，右侧实时生成 LaTeX 代码，全程离线运行</p>
-        </div>
+        <header class="workspace-header">
+            <div class="brand-block">
+                <h1>VisualLaTeX <span>Studio</span></h1>
+                <span class="language-signature" aria-label="支持 LaTeX 和 PostScript">TeX <span aria-hidden="true">/</span> PS</span>
+            </div>
+            <div class="project-identity">
+                <label for="projectName">项目</label>
+                <input id="projectName" type="text" value="我的项目" maxlength="120" autocomplete="off" aria-label="项目名称">
+            </div>
+            <div class="project-actions" aria-label="项目操作">
+                <button id="btnNewProject" type="button">新建项目</button>
+                <button id="btnImportProject" type="button" title="打开 ZIP 或项目备份">打开项目</button>
+                <button id="btnExportProject" class="primary" type="button">导出 ZIP</button>
+            </div>
+        </header>
 
-        <!-- 工具栏 -->
-        <div class="toolbar">
-            <button id="btnH1" title="一级标题 \section">H1</button>
-            <button id="btnH2" title="二级标题 \subsection">H2</button>
-            <button id="btnH3" title="三级标题 \subsubsection">H3</button>
+        <nav class="toolbar workspace-toolbar" aria-label="编辑工具">
+            <div class="tool-group">
+                <button id="btnFiles" type="button" aria-controls="fileSidebar" aria-expanded="false">文件</button>
+                <button id="btnUndo" type="button" title="撤销（Ctrl+Z）">撤销</button>
+                <button id="btnRedo" type="button" title="重做（Ctrl+Shift+Z）">重做</button>
+                <button id="btnFind" type="button" title="查找与替换（Ctrl+F）" aria-controls="findPanel">查找替换</button>
+            </div>
+            <div class="separator" aria-hidden="true"></div>
+            <div class="tool-group format-tools" aria-label="LaTeX 格式">
+                <button id="btnH1" type="button" title="一级标题 · \section">H1</button>
+                <button id="btnH2" type="button" title="二级标题 · \subsection">H2</button>
+                <button id="btnH3" type="button" title="三级标题 · \subsubsection">H3</button>
+                <button id="btnBold" type="button" title="加粗"><b>B</b></button>
+                <button id="btnItalic" type="button" title="斜体"><i>I</i></button>
+                <button id="btnCenter" type="button">居中</button>
+                <button id="btnUl" type="button" title="无序列表">无序列表</button>
+                <button id="btnOl" type="button" title="有序列表">有序列表</button>
+                <button id="btnInlineFormula" type="button" title="行内公式">$ 公式</button>
+                <button id="btnBlockFormula" type="button" title="行间公式">$$ 公式</button>
+                <button id="btnImage" type="button">图片</button>
+            </div>
+            <div class="separator" aria-hidden="true"></div>
+            <div class="tool-group">
+                <button id="btnCopy" type="button" title="复制当前文件源码">复制</button>
+                <button id="btnDownload" type="button" title="下载当前文件">下载文件</button>
+                <button id="btnOutline" type="button" aria-controls="contextSidebar" aria-expanded="false">结构与引用</button>
+            </div>
+        </nav>
 
-            <div class="separator"></div>
-
-            <button id="btnBold" title="加粗 (Ctrl+B)"><b>B</b></button>
-            <button id="btnItalic" title="斜体 (Ctrl+I)"><i>I</i></button>
-            <button id="btnCenter" title="居中">居中</button>
-
-            <div class="separator"></div>
-
-            <button id="btnUl" title="无序列表">无序列表</button>
-            <button id="btnOl" title="有序列表">有序列表</button>
-
-            <div class="separator"></div>
-
-            <button id="btnInlineFormula" title="行内公式">$ 公式 $</button>
-            <button id="btnBlockFormula" title="行间公式">$$ 公式 $$</button>
-            <button id="btnImage" title="插入图片">图片</button>
-
-            <div class="separator"></div>
-
-            <button id="btnImport" class="primary" title="导入本地 .tex 文件进行轻量编辑">导入 .tex</button>
-            <button id="btnStart" class="primary" title="清空编辑器开始新文档">新建</button>
-            <button id="btnReload" title="删除草稿并重新加载">重载</button>
-
-            <div class="separator"></div>
-
-            <button id="btnCopy" class="success" title="复制 LaTeX 代码">复制代码</button>
-            <button id="btnDownload" class="success" title="下载 .tex 文件">下载文件</button>
-        </div>
-
-        <!-- 隐藏的文件选择框（导入 .tex 用） -->
-        <input type="file" id="texFileInput" accept=".tex,.txt,.latex" hidden>
-
-        <!-- 主内容区域 -->
-        <div class="main-content">
-            <!-- 左侧编辑区 -->
-            <div class="editor-panel">
-                <div class="panel-header">可视化编辑区</div>
-                <div id="editorArea" class="editor-area" contenteditable="true">
-                    <h1>欢迎使用 VisualLaTeX</h1>
-                    <p>这是一个纯前端、零依赖、完全离线的 LaTeX 轻编辑器，适合对已有论文做快速小修改。</p>
-
-                    <h2>三步上手</h2>
-                    <ol>
-                        <li>点击工具栏的「导入 .tex」，选择本地的 LaTeX 文件</li>
-                        <li>在左侧修改文字、标题与列表，双击已有公式可打开编辑</li>
-                        <li>点击「下载文件」导出修改后的 .tex，或复制代码到剪贴板</li>
-                    </ol>
-
-                    <h2>公式示例</h2>
-                    <p>行内公式示例：<span class="formula-inline" data-formula="E=mc^2" contenteditable="false">$E=mc^2$</span></p>
-
-                    <div class="formula-block" data-formula="\int_{a}^{b} f(x) \, dx = F(b) - F(a)" contenteditable="false">$$\int_{a}^{b} f(x) \, dx = F(b) - F(a)$$</div>
-
-                    <h2>小提示</h2>
-                    <p>表格、参考文献、代码清单等复杂结构会以灰色「原样保留块」展示，可以直接编辑其中文本，导出时原样输出，不会丢失内容。修改内容会自动保存为草稿。</p>
+        <div class="workbench main-content" id="workspaceShell">
+            <aside class="project-sidebar" id="fileSidebar" aria-label="项目文件">
+                <div class="sidebar-heading">
+                    <h2>项目文件</h2>
+                    <button id="newFile" class="small-button" type="button" title="新建 .tex、.bib、.ps 或其他文本文件">＋ 新建</button>
                 </div>
-            </div>
+                <div class="file-import-actions">
+                    <button id="btnImportFiles" type="button">添加文件</button>
+                    <button id="btnImportFolder" type="button">打开文件夹</button>
+                </div>
+                <nav id="fileTree" class="file-tree" aria-label="文件列表"></nav>
+                <div class="file-actions" aria-label="当前文件操作">
+                    <button id="renameFile" type="button">重命名</button>
+                    <button id="setMainFile" type="button">设为主文件</button>
+                    <button id="deleteFile" class="quiet-danger" type="button">删除</button>
+                </div>
+                <p class="sidebar-note">文件保存在当前浏览器中。导出 ZIP 可备份整个项目。</p>
+            </aside>
 
-            <!-- 右侧预览区 -->
-            <div class="preview-panel">
-                <div class="panel-header">LaTeX 代码预览</div>
-                <div id="previewArea" class="preview-area"></div>
-            </div>
+            <main class="document-pane" aria-label="文件编辑器">
+                <div class="document-header">
+                    <div class="document-location">
+                        <span id="languageBadge" class="language-badge">LaTeX</span>
+                        <span id="currentPath" class="current-path">main.tex</span>
+                    </div>
+                    <div class="mode-switch" role="group" aria-label="编辑模式">
+                        <button id="modeSource" class="active" type="button" aria-pressed="true">源码</button>
+                        <button id="modeVisual" type="button" aria-pressed="false" title="完整 LaTeX 文档可使用可视化编辑">可视化</button>
+                    </div>
+                </div>
+
+                <div id="findPanel" class="find-panel" hidden aria-label="查找替换">
+                    <div class="find-fields">
+                        <label for="findText">查找</label>
+                        <input id="findText" type="text" placeholder="输入要查找的文本" autocomplete="off" spellcheck="false">
+                        <button id="btnFindNext" type="button">下一个</button>
+                        <label class="case-option"><input id="findCase" type="checkbox">区分大小写</label>
+                    </div>
+                    <div class="find-fields">
+                        <label for="replaceText">替换</label>
+                        <input id="replaceText" type="text" placeholder="替换为" autocomplete="off" spellcheck="false">
+                        <button id="btnReplace" type="button">替换</button>
+                        <button id="btnReplaceAll" type="button">全部替换</button>
+                    </div>
+                    <div class="find-footer">
+                        <span id="findStatus" role="status" aria-live="polite">仅查找当前文件</span>
+                        <button id="btnCloseFind" class="text-button" type="button">关闭</button>
+                    </div>
+                </div>
+
+                <div id="sourcePanel" class="source-panel">
+                    <pre id="lineNumbers" class="line-numbers" aria-hidden="true">1</pre>
+                    <textarea id="sourceArea" class="source-area" aria-label="当前文件源码" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" wrap="off" placeholder="开始编辑，或从左侧添加现有项目文件…"></textarea>
+                </div>
+
+                <div id="visualPanel" class="visual-panel" hidden>
+                    <div class="mode-note">编辑文字与格式；引用、导言区和任意命令都可切回源码修改。</div>
+                    <div id="editorArea" class="editor-area" contenteditable="true" role="textbox" aria-label="LaTeX 可视化编辑区" aria-multiline="true"></div>
+                </div>
+
+                <div id="assetPanel" class="asset-panel" hidden>
+                    <span class="asset-mark" aria-hidden="true">↳</span>
+                    <h2>项目资源</h2>
+                    <p id="assetMessage">此文件会随项目一起导出，保持原始内容。</p>
+                </div>
+
+                <div class="document-footer">
+                    <span id="positionInfo">行 1，列 1</span>
+                    <span class="source-hint">LaTeX / PostScript 源码编辑 · 无需联网</span>
+                    <button id="btnEncoding" class="encoding-button" type="button" title="转换当前文本文件的编码">UTF-8</button>
+                </div>
+            </main>
+
+            <aside id="contextSidebar" class="context-sidebar" aria-label="文档结构与引用">
+                <section class="context-section outline-section">
+                    <div class="sidebar-heading"><h2>文档结构</h2></div>
+                    <nav id="outlineList" class="context-list" aria-label="章节或页面导航"></nav>
+                </section>
+                <section class="context-section reference-section">
+                    <div class="sidebar-heading"><h2>引用与参考文献</h2></div>
+                    <div class="reference-actions">
+                        <button id="btnInsertCitation" type="button" title="插入 \cite">引用文献</button>
+                        <button id="btnInsertReference" type="button" title="插入 \ref">交叉引用</button>
+                        <button id="btnInsertLabel" type="button" title="插入 \label">添加标签</button>
+                        <button id="btnAddBibEntry" type="button">新增文献条目</button>
+                    </div>
+                    <div id="referenceList" class="context-list" aria-label="项目中的标签与参考文献"></div>
+                    <p class="sidebar-note">引用键和文献条目可在源码中直接修改。</p>
+                </section>
+            </aside>
         </div>
 
-        <!-- 窄屏面板切换（桌面隐藏，仅手机与横屏小窗显示） -->
-        <div class="panel-tabs" id="panelTabs">
-            <button id="tabEditor" class="active" type="button" aria-selected="true">编辑</button>
-            <button id="tabPreview" type="button" aria-selected="false">LaTeX 代码</button>
-        </div>
-
-        <!-- 状态栏 -->
-        <div class="status-bar">
-            <div class="status-item">
-                <div class="status-indicator"></div>
-                <span id="statusText">就绪</span>
-            </div>
-            <div class="status-item">
-                <span>草稿自动保存</span>
-            </div>
-        </div>
+        <footer class="status-bar workspace-status" role="status" aria-live="polite">
+            <span id="statusText">就绪</span>
+            <span id="saveState">项目自动保存</span>
+        </footer>
     </div>
 
-    <!-- 公式输入弹窗 -->
+    <input id="importFiles" type="file" multiple hidden>
+    <input id="importFolder" type="file" webkitdirectory multiple hidden>
+    <input id="importProject" type="file" accept=".zip,.vlproj,.json" hidden>
+
+    <!-- 保留单文件编辑器的兼容入口；工作台由 workspace.js 统一控制。 -->
+    <div hidden>
+        <button id="btnImport" type="button">导入 .tex</button>
+        <button id="btnStart" type="button">新建文档</button>
+        <button id="btnReload" type="button">清除草稿</button>
+        <input type="file" id="texFileInput" accept=".tex,.txt,.latex" hidden>
+        <div id="previewArea" class="preview-area"></div>
+        <div id="panelTabs"><button id="tabEditor" type="button">编辑</button><button id="tabPreview" type="button">源码</button></div>
+    </div>
+
     <div class="modal-overlay" id="formulaModal">
-        <div class="modal-dialog">
+        <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="formulaTitle">
             <div class="modal-header">
-                <span class="modal-title">公式工具</span>
+                <span class="modal-title" id="formulaTitle">公式工具</span>
                 <button class="modal-close" id="formulaModalClose" type="button" title="关闭">×</button>
             </div>
             <div class="modal-body">
                 <div class="tab-panel active" id="tab-input">
                     <div class="formula-mode-row">
-                        <label class="mode-option">
-                            <input type="radio" name="formulaMode" value="inline" checked>
-                            <span>行内公式 <code>$...$</code></span>
-                        </label>
-                        <label class="mode-option">
-                            <input type="radio" name="formulaMode" value="block">
-                            <span>行间公式 <code>$$...$$</code></span>
-                        </label>
+                        <label class="mode-option"><input type="radio" name="formulaMode" value="inline" checked><span>行内公式 <code>$...$</code></span></label>
+                        <label class="mode-option"><input type="radio" name="formulaMode" value="block"><span>行间公式 <code>$$...$$</code></span></label>
                     </div>
                     <div class="symbol-palette" id="symbolPalette"></div>
-                    <textarea id="formulaInput" rows="4" placeholder="在此输入 LaTeX 公式代码，例如：\frac{x}{y} 或 E=mc^2，可点击上方符号快速插入"></textarea>
-                    <div class="modal-actions">
-                        <button class="btn-insert" id="btnInsertFormula" type="button">插入公式</button>
-                    </div>
+                    <label class="visually-hidden" for="formulaInput">LaTeX 公式</label>
+                    <textarea id="formulaInput" rows="4" spellcheck="false" placeholder="输入 LaTeX 公式，例如 \frac{x}{y} 或 E=mc^2"></textarea>
+                    <div class="modal-actions"><button class="btn-insert" id="btnInsertFormula" type="button">插入公式</button></div>
                 </div>
             </div>
         </div>
     </div>
 
     <script src="main.js"></script>
+    <script src="project-model.js"></script>
+    <script src="project-archive.js"></script>
+    <script src="workspace.js"></script>
 </body>
 </html>

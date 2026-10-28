@@ -1,142 +1,85 @@
-<div align="center">
+# VisualLaTeX Studio
 
-# VisualLaTeX
+**LaTeX 与 PostScript 的离线项目编辑器。**
 
-**导入 · 轻改 · 导出 —— 保留原文的离线 LaTeX 轻编辑器**
+这是基于 [Escap1ng/VisualLaTeX](https://github.com/Escap1ng/VisualLaTeX) 的独立工作区版本，在原有无损导入修复之上，加入完整源码、多文件项目、参考文献与 ZIP 管理。运行时零依赖，无需安装或联网。
 
-[![Version](https://img.shields.io/badge/Version-v2.0.3-6f42c1)](https://github.com/Escap1ng/VisualLaTeX/releases)
-[![License](https://img.shields.io/badge/License-Apache_2.0-0366d6)](./LICENSE)
-[![CI](https://github.com/Escap1ng/VisualLaTeX/actions/workflows/ci.yml/badge.svg)](https://github.com/Escap1ng/VisualLaTeX/actions/workflows/ci.yml)
-[![Online Demo](https://img.shields.io/badge/Online_Demo-GitHub_Pages-00b4d8)](https://Escap1ng.github.io/VisualLaTeX/)
-[![Dependencies](https://img.shields.io/badge/Dependencies-none-959da5)](https://github.com/Escap1ng/VisualLaTeX/actions/workflows/build.yml)
+**所有文本文件都能直接编辑。** 导言区、宏定义、`\cite`、`\ref`、`\label`、BibTeX 条目以及 PostScript 程序不再受可视化解析能力限制。未完成的源码也可以保存和导出。
 
-**中文** · [English](README.en.md)
+## 开始使用
 
-</div>
+下载并解压源码包，双击 `index.html`。默认项目包含 `main.tex`、`references.bib` 和 `drawing.ps`。
 
----
+1. 用「添加文件」加入文件，或用「打开文件夹」「打开项目」导入目录/ZIP。
+2. 从左侧选择文件，在源码区直接修改。`main.tex` 等完整 LaTeX 文档还可切换到「可视化」。
+3. 用「下载文件」导出当前文件，或用「导出 ZIP」保存整个项目及资源。
 
-<div align="center">
+打开文件夹或项目包会在确认后替换当前项目；添加文件会保留已有文件，并自动为重名文件另起名称。源码中已有的 `\input`、图片路径和引用键不会因重命名文件而自动重写。
 
-![VisualLaTeX 编辑器界面](screenshots/editor.png)
+## 编辑能力
 
-</div>
+| 功能 | 支持范围 |
+| --- | --- |
+| 完整源码 | `.tex`、`.latex`、`.sty`、`.cls`、`.bib`、`.ps`、`.eps` 及自定义扩展名的 UTF-8 文本文件 |
+| 多文件工作区 | 新建、重命名、删除、设定主文件；保留相对目录结构 |
+| 源码/可视化 | 切换时同步内容；不完整 TeX、片段、BibTeX 和 PostScript 始终可用源码模式 |
+| 引用与文献 | 定位标签、引用位置和 BibTeX 条目；插入 `\cite` / `\ref` / `\label`，新增文献条目 |
+| 查找替换 | 当前文件查找、循环查找、单次替换、全部替换、区分大小写 |
+| 撤销重做 | 每个文件独立历史，支持源码和可视化编辑；同一输入过程合并成一步 |
+| PostScript | `.ps` / 文本 `.eps` 源码编辑、页面/过程导航、示例文件、UTF-8 与 Latin-1 编码 |
+| 图片等资源 | 二进制文件按原始字节保存；二进制 EPS 保留为资源，可单独下载 |
+| 项目 ZIP | 导入 stored/deflate ZIP，导出标准 ZIP；包含未打开文件的编辑及原始资源 |
+| 本机草稿 | 整个项目单次保存；失败时显示状态；兼容旧版单文档草稿迁移 |
 
-## 为什么需要它
+在可视化中双击引用命令会定位到源码，直接修改完整命令。双击公式可使用公式编辑窗口。LaTeX 章节、基础格式、列表、公式和简单图片保留可视化支持；复杂结构以可编辑原文块呈现。
 
-论文截稿前夜，导师只让你"改几句话、换个标题"——可一打开 `.tex`，满屏反斜杠和花括号扑面而来。Overleaf 很强，但它为写代码的人设计；你只想安全地小改一下。
+新建 `main.tex` 会生成完整文档；其他 `.tex` 文件默认留空，适合 `\input` 的章节片段。新建 `.ps` / `.eps` 会提供对应模板。
 
-**VisualLaTeX 就是为此而生：**
+## 快捷键
 
-| 场景 | 传统代码编辑器 | VisualLaTeX |
-|:---|:---|:---|
-| 小改动效率 | 在源码中手动定位结构 | 所见即所得，直接点改 |
-| 误改风险 | 容易碰坏命令与环境 | 未编辑的源码块保留原文，复杂结构使用原文块 |
-| 上手成本 | 需熟悉 LaTeX 语法 | 会用 Word 就会用 |
+| 快捷键 | 操作 |
+| --- | --- |
+| Ctrl/Cmd + S | 保存本机项目草稿 |
+| Ctrl/Cmd + F | 当前文件查找替换 |
+| Ctrl/Cmd + Z | 撤销 |
+| Ctrl/Cmd + Shift + Z / Ctrl + Y | 重做 |
+| Tab | 在源码中插入两个空格 |
 
-## 核心工作流
+底栏的编码按钮可显式切换 UTF-8 / Latin-1。Latin-1 不能表达的字符不会被静默替换；需要输入这些字符时先切换编码。
 
-**导入 `.tex` → 可视化轻改 → 导出 `.tex`**
+## 数据与边界
 
-未编辑的源码块按原文保留，包括注释、空白与换行；编辑过的区段重新生成 LaTeX。无法安全转换的结构以可编辑原文块保留，全程离线。
+- 项目最多 500 个文件、展开后 50 MB；ZIP 包最多 100 MB。加密、分卷和 ZIP64 包暂不支持。
+- 浏览器自动保存容量由浏览器决定，可能小于项目导入上限。大项目请使用「导出 ZIP」备份；撤销历史仅保留在当前会话。
+- UTF-8 BOM、原始换行和未编辑的 LaTeX 源码块会被保留。可视化改动的区段会重新生成 LaTeX。
+- ZIP 中的项目名称、主文件和当前文件记录在 ZIP 注释中，不占用或覆盖用户文件名；第三方重新打包可能移除这些设置，但源码和资源仍可导入。
+- 本版本负责编辑与项目管理，**不执行 TeX 或 PostScript 程序，也不编译/渲染 PDF、PS**。将导出的项目交给现有 TeX / Ghostscript 工具链处理。
+- 不支持 TeX 宏展开或完整语法诊断。可视化能力不足时，完整源码仍可编辑。
 
-## 功能一览
+## 开发与验证
 
-| 功能 | 说明 |
-|:---|:---|
-| 一键导入 | 打开本地 `.tex`，章节、段落、列表、公式、图片自动转为可视化元素 |
-| 双栏同屏 | 左侧可视化编辑，右侧 LaTeX 源码实时预览 |
-| 基础排版 | 三级标题、加粗、斜体、居中、有序/无序列表 |
-| 公式输入 | 30+ 符号快捷面板，支持 `$...$`、`$$...$$`、`\(...\)`、`\[...\]`；双击已有可视化公式可修改 |
-| 原样保留块 | 表格、参考文献、代码清单等复杂结构原文展示、可编辑、导出不丢失 |
-| 命令保护 | `\cite`、`\ref` 等引用命令原样保留，绝不被转义破坏 |
-| 图片插入 | 填写路径自动生成 `figure` 浮动环境 |
-| 一键导出 | 复制源码或下载 `.tex`，自动沿用导入文件名 |
-| 自动缓存 | 草稿连同导言区一起保存，刷新页面内容不丢失 |
-
-## 快速开始
-
-**零安装 · 零依赖 · 零构建**，克隆后双击即可离线运行：
-
-```bash
-git clone https://github.com/Escap1ng/VisualLaTeX.git
-```
-
-然后双击 `index.html`。就这样。
-
-也可以直接使用[在线预览版](https://Escap1ng.github.io/VisualLaTeX/)（由 GitHub Actions 自动部署）。
-
-## 项目结构
-
-```
-VisualLaTeX/
-├── index.html    # 主页面（布局、工具栏）
-├── style.css     # 全局样式
-├── main.js       # 编辑器核心、.tex 解析、DOM↔LaTeX 转换
-├── tests/        # 零依赖冒烟检查与导入/导出/编辑回归测试
-├── .github/      # GitHub Actions 工作流（CI / 自动发布 / Pages 部署）
-├── README.md     # 项目说明（中文）
-└── README.en.md  # 项目说明（English）
-```
-
-## 持续集成
-
-项目使用 GitHub Actions 实现自动化检查与发布：
-
-| 工作流 | 触发时机 | 作用 |
-|:---|:---|:---|
-| CI | 推送 `main`、`dev` / 针对这两个分支的 PR | JS 语法、资源完整性及导入/导出/编辑回归测试 |
-| Build & Release | 推送 `v*` 版本标签 | 同一提交检查通过后打包并上传 GitHub Release |
-| Deploy to GitHub Pages | 推送 `main` | 同一提交检查通过后部署[在线预览版](https://Escap1ng.github.io/VisualLaTeX/) |
-
-本地验证（Node.js 22+，无需安装 npm 包）：
+Node.js 22+，无需安装 npm 包：
 
 ```bash
 node --check main.js
+node --check workspace.js
 node tests/smoke.mjs
 node --test
 ```
 
-回归测试覆盖 HTML 注入防护、源码往返、局部编辑、公式、图片、转义字符及草稿恢复。DOM 测试使用最小模型，不替代真实浏览器交互或 TeX 编译验证。
+测试覆盖源码往返、HTML 注入、草稿迁移、多文件历史、引用索引、PostScript/资源字节、ZIP 完整性以及实际界面事件。DOM 测试使用最小模型，不代表真实浏览器布局或 TeX/PS 编译验证。
 
-## 推荐工作流
+CI 检查 `main` / `dev` 的推送与 PR；部署和发布都在检查通过后执行。
 
-导入要修改的 `.tex` → 可视化完成文字与结构调整 → 导出下载 → 放回原项目编译。
+```
+index.html / workspace.css  工作台界面
+workspace.js                文件、编辑模式、查找替换与导入导出协调
+project-model.js            源码、项目状态、历史、引用索引
+project-archive.js          无依赖 ZIP 读写
+main.js / style.css         LaTeX 解析、转换及可视化编辑核心
+tests/                      零依赖回归测试
+```
 
-<details>
-<summary><b>已知限制</b></summary>
+## 许可
 
-1. 基于 `contenteditable`，不同浏览器的复杂编辑行为仍需实际验证
-2. 不支持可视化表格编辑（表格以原样保留块形式编辑源码）
-3. 复杂/嵌套环境、多图、带自定义标签的列表及 `equation` 环境以原文块编辑；不执行 TeX 宏展开
-4. 定位是轻量修改工具，大规模重写建议直接使用代码编辑器
-
-</details>
-
-<details>
-<summary><b>版本历史</b></summary>
-
-- **v2.0.3**：修复导入丢内容与 HTML 注入——重写 `.tex` 解析，按命令、环境、数学、逐字块读取，未编辑的源码块逐字节保留；新增 `\(...\)`、`\[...\]` 定界符与 `\verb`、`\lstinline` 支持；双击已有公式可编辑；草稿按版本原子保存并在离开页面时落盘，旧草稿恢复前先清洗；新增 `node --test` 回归测试 70 例
-- **v2.0.2**：手机端与窄屏适配——一屏一个面板，底部 tab 在编辑区与 LaTeX 代码间切换；工具栏收成单行横向滑动，触控目标 ≥44px；补 `min-height:0` 修复代码预览被裁出屏幕；改用 `100dvh` 与 16px 输入框，iOS 聚焦不再放大整页；LaTeX 转换与导出逻辑未改动
-- **v2.0.1**：维护版本，main.js 未作修改；许可证由 MIT 改为 Apache-2.0；界面改用 design tokens 与学术暖白主题，工具栏按钮改为纯文本；新增 CI 检查与 GitHub Pages 在线演示的自动部署
-- **v2.0.0**：去垂直化改造，转型为通用离线 LaTeX 轻编辑器；新增 .tex 导入；未支持结构原样保留，实现往返保真；修复导言区不随草稿缓存、公式误改丢数据等问题
-- **v1.1.0**：可视化编辑器 + 数模公式助手（已被 v2.0.0 移除）
-- **v1.0.0**：首个版本
-
-</details>
-
-## 参与贡献
-
-欢迎提交 [Issue](https://github.com/Escap1ng/VisualLaTeX/issues) 或 Pull Request。
-
-## 开源协议
-
-[Apache License 2.0](./LICENSE) © Escap1ng
-
----
-
-<div align="center">
-
-**如果这个工具帮你省下了一小时，欢迎点一个 Star**
-
-</div>
+沿用 [Apache-2.0](LICENSE)。原项目由 Escap1ng 开发，本分支在其基础上扩展。

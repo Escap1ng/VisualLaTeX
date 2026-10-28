@@ -33,7 +33,7 @@ jobs:
           $tag = $env:GITHUB_REF_NAME
           $name = "VisualLaTeX-$tag"
           New-Item -ItemType Directory -Path $name -Force | Out-Null
-          Copy-Item index.html, style.css, main.js, LICENSE, README.md, README.en.md -Destination $name
+          Copy-Item index.html, style.css, workspace.css, main.js, workspace.js, project-model.js, project-archive.js, LICENSE, README.md, README.en.md -Destination $name
           Copy-Item screenshots -Destination $name -Recurse
           Copy-Item tests -Destination $name -Recurse
           Compress-Archive -Path $name -DestinationPath "$name.zip"

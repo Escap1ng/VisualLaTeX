@@ -24,6 +24,12 @@ document.addEventListener('DOMContentLoaded', function() {
     previewArea = document.getElementById('previewArea');
     statusText = document.getElementById('statusText');
 
+    // 完整工作区使用独立的多文件状态；单文件核心仍可单独加载和测试。
+    if (typeof initWorkspace === 'function') {
+        initWorkspace();
+        return;
+    }
+
     // 绑定工具栏按钮事件
     initToolbar();
 
