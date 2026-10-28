@@ -64,6 +64,59 @@ test('align and gather editors start inside their final cell and commit field in
     }
 });
 
+test('Ctrl/Cmd+Enter confirms before the mathfield target can insert a matrix row', async () => {
+    for (const modifier of ['ctrlKey', 'metaKey']) {
+        const f = await visual(String.raw`\begin{align}a&=1\\b&=2\label{eq:last}\end{align}`);
+        await open(f);
+        const field = f.node('formulaMathField');
+        field.value = String.raw`\begin{aligned}a&=1\\b&=2+1\end{aligned}`;
+        await f.emit(field, 'input');
+
+        // MathLive handles keyboard events at a descendant inside its custom
+        // element. A host bubble listener is too late to prevent this edit.
+        const keyboardSink = f.document.createElement('span');
+        field.appendChild(keyboardSink);
+        let insertedRows = 0, confirmations = 0, parentShortcuts = 0;
+        keyboardSink.addEventListener('keydown', async event => {
+            if (event.key !== 'Enter' || event.defaultPrevented) return;
+            insertedRows++;
+            field.value = field.value.replace(String.raw`\end{aligned}`, String.raw`\\\placeholder{}\end{aligned}`);
+            await f.emit(field, 'input');
+        });
+        const confirm = f.node('btnInsertFormula');
+        const click = confirm.click;
+        confirm.click = () => { confirmations++; return click(); };
+        f.document.addEventListener('keydown', () => { parentShortcuts++; });
+
+        const event = await f.dispatch(keyboardSink, 'keydown', {key:'Enter', [modifier]:true});
+        assert.equal(event.defaultPrevented, true);
+        assert.equal(event.propagationStopped, true);
+        assert.equal(insertedRows, 0, 'capture must stop the mathfield default before it changes the expression');
+        assert.equal(confirmations, 1);
+        assert.equal(parentShortcuts, 0);
+        assert.equal(formula(f).getAttribute('data-formula'), String.raw`a&=1\\b&=2+1\label{eq:last}`);
+        assert.equal(f.context.VisualMath.split(formula(f).getAttribute('data-formula')).rows.length, 2);
+        assert.doesNotMatch(f.app.model.get().text, /placeholder/);
+        assert.equal(f.node('formulaModal').classList.contains('show'), false);
+    }
+});
+
+test('plain Enter still reaches the mathfield editing handler without confirming', async () => {
+    const f = await visual(String.raw`\begin{align}a&=1\\b&=2\end{align}`);
+    await open(f);
+    const field = f.node('formulaMathField');
+    const keyboardSink = f.document.createElement('span');
+    field.appendChild(keyboardSink);
+    let insertedRows = 0;
+    keyboardSink.addEventListener('keydown', event => {
+        if (event.key === 'Enter' && !event.defaultPrevented) insertedRows++;
+    });
+    const event = await f.dispatch(keyboardSink, 'keydown', {key:'Enter'});
+    assert.equal(event.defaultPrevented, false);
+    assert.equal(insertedRows, 1, 'ordinary mathfield editing must still reach its target listener');
+    assert.equal(f.node('formulaModal').classList.contains('show'), true);
+});
+
 test('label and display-number input events update only their exact source fields', async () => {
     const f = await visual(String.raw`\begin{equation} x = y \label {eq:old}\tag*{A 1}% retained
 \end{equation}`);

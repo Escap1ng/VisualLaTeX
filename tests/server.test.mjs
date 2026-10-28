@@ -54,7 +54,8 @@ test('visual editor modules and bundled math fonts have usable MIME types withou
         assert.equal(response.headers.get('content-type'), 'text/javascript; charset=utf-8', path);
         assert.ok((await response.text()).length > 0, path);
     }
-    for (const path of ['/visual-math.css', '/visual-references-ui.css', '/vendor/mathlive/mathlive-static.css', '/vendor/mathlive/mathlive-fonts.css']) {
+    for (const path of ['/visual-math.css', '/visual-references-ui.css', '/studio.css', '/studio-dialogs.css',
+        '/vendor/mathlive/mathlive-static.css', '/vendor/mathlive/mathlive-fonts.css']) {
         const response = await fetch(f.url + path);
         assert.equal(response.status, 200, path);
         assert.equal(response.headers.get('content-type'), 'text/css; charset=utf-8', path);

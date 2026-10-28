@@ -41,7 +41,7 @@ jobs:
       - name: 准备静态编辑器
         run: |
           mkdir site
-          cp index.html style.css workspace.css preview.css visual-math.css visual-references-ui.css main.js workspace.js project-model.js project-archive.js preview.js visual-math.js visual-references.js visual-references-ui.js LICENSE site/
+          cp index.html style.css workspace.css preview.css visual-math.css visual-references-ui.css studio.css studio-dialogs.css main.js workspace.js project-model.js project-archive.js preview.js visual-math.js visual-references.js visual-references-ui.js LICENSE site/
           cp -R vendor site/
 
       - name: 上传站点产物

@@ -21,19 +21,69 @@ export async function fixture({denyStorage = false, denyDialogs = false, initial
     let document;
     const addEvents = target => {
         target._events = new Map();
-        target.addEventListener = (type, listener) => {
-            if (!target._events.has(type)) target._events.set(type, []);
-            target._events.get(type).push(listener);
+        target._captureEvents = new Map();
+        const eventMap = options => options === true || options?.capture ? target._captureEvents : target._events;
+        target.addEventListener = (type, listener, options = false) => {
+            const map = eventMap(options);
+            if (!map.has(type)) map.set(type, []);
+            map.get(type).push(listener);
         };
-        target.removeEventListener = (type, listener) => {
-            target._events.set(type, (target._events.get(type) || []).filter(item => item !== listener));
+        target.removeEventListener = (type, listener, options = false) => {
+            const map = eventMap(options);
+            map.set(type, (map.get(type) || []).filter(item => item !== listener));
         };
     };
-    async function emit(target, type, properties = {}) {
-        const event = {type, target, defaultPrevented: false, propagationStopped: false,
+    function eventFor(target, type, properties) {
+        return {type, target, defaultPrevented: false, propagationStopped: false, immediatePropagationStopped: false,
             preventDefault() { this.defaultPrevented = true; },
-            stopPropagation() { this.propagationStopped = true; }, ...properties};
-        for (const listener of target._events?.get(type) || []) await listener(event);
+            stopPropagation() { this.propagationStopped = true; },
+            stopImmediatePropagation() { this.immediatePropagationStopped = this.propagationStopped = true; }, ...properties};
+    }
+    async function invoke(target, type, event, capture) {
+        event.currentTarget = target;
+        const map = capture ? target._captureEvents : target._events;
+        for (const listener of map?.get(type) || []) {
+            await listener.call(target, event);
+            if (event.immediatePropagationStopped) break;
+        }
+    }
+    async function emit(target, type, properties = {}) {
+        const event = eventFor(target, type, properties);
+        event.currentTarget = target;
+        // Keep target-only delivery timing unchanged for callers that start an
+        // async prompt and inspect it before answering it.
+        for (const listener of target._captureEvents?.get(type) || []) {
+            await listener.call(target, event);
+            if (event.immediatePropagationStopped) return event;
+        }
+        for (const listener of target._events?.get(type) || []) {
+            await listener.call(target, event);
+            if (event.immediatePropagationStopped) break;
+        }
+        return event;
+    }
+    // Opt-in propagation for custom-element integration regressions. Existing
+    // emit() calls remain target-only so their fixtures do not simulate layout.
+    async function dispatch(target, type, properties = {}) {
+        const event = eventFor(target, type, properties);
+        const path = [];
+        for (let node = target; node; node = node.parentNode) path.push(node);
+        if (!path.includes(document)) path.push(document);
+        event.composedPath = () => path.slice();
+        for (const ancestor of path.slice(1).reverse()) {
+            event.eventPhase = 1;
+            await invoke(ancestor, type, event, true);
+            if (event.propagationStopped) return event;
+        }
+        event.eventPhase = 2;
+        await invoke(target, type, event, true);
+        if (!event.immediatePropagationStopped) await invoke(target, type, event, false);
+        if (event.propagationStopped) return event;
+        for (const ancestor of path.slice(1)) {
+            event.eventPhase = 3;
+            await invoke(ancestor, type, event, false);
+            if (event.propagationStopped) return event;
+        }
         return event;
     }
     function enhance(node) {
@@ -217,7 +267,7 @@ export async function fixture({denyStorage = false, denyDialogs = false, initial
     await emit(document, 'DOMContentLoaded');
     const refresh = () => { for (const node of root.querySelectorAll('*')) enhance(node); };
     refresh();
-    return {context, app: context.visualWorkspace, document, ids, storage, prompts, alerts, blobs, emit,
+    return {context, app: context.visualWorkspace, document, ids, storage, prompts, alerts, blobs, emit, dispatch,
         refresh, selection, mathField,
         setCursor(node, offset) { const range = new Range(); range.setStart(node, offset); range.collapse(true); selection.removeAllRanges(); selection.addRange(range); },
         node: id => ids.get(id), click: id => ids.get(id).click(),

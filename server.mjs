@@ -27,7 +27,8 @@ const ASSETS = new Map([
     ...['main.js', 'workspace.js', 'project-model.js', 'project-archive.js', 'preview.js',
         'visual-math.js', 'visual-references.js', 'visual-references-ui.js']
         .map(name => ['/' + name, [name, 'text/javascript; charset=utf-8']]),
-    ...['style.css', 'workspace.css', 'preview.css', 'visual-math.css', 'visual-references-ui.css']
+    ...['style.css', 'workspace.css', 'preview.css', 'visual-math.css', 'visual-references-ui.css',
+        'studio.css', 'studio-dialogs.css']
         .map(name => ['/' + name, [name, 'text/css; charset=utf-8']]),
     ...mathliveAssets
 ]);

@@ -40,7 +40,8 @@ test('offline scripts and stylesheet overrides load in dependency order', () => 
     assert.deepEqual(scripts, ['vendor/mathlive/mathlive.min.js', 'visual-math.js', 'main.js', 'project-model.js',
         'project-archive.js', 'visual-references.js', 'visual-references-ui.js', 'workspace.js', 'preview.js']);
     const styles = [...html.matchAll(/<link\s+rel="stylesheet"\s+href="([^"]+)"[^>]*>/g)].map(match => match[1]);
-    assert.deepEqual(styles, ['style.css', 'workspace.css', 'preview.css', 'visual-references-ui.css', 'visual-math.css']);
+    assert.deepEqual(styles, ['style.css', 'workspace.css', 'preview.css', 'visual-references-ui.css', 'visual-math.css',
+        'studio.css', 'studio-dialogs.css']);
     for (const resource of [...scripts, ...styles]) {
         assert.doesNotMatch(resource, /^(?:https?:)?\/\//);
         assert.ok(fs.existsSync(new URL('../' + resource, import.meta.url)), `missing local resource ${resource}`);

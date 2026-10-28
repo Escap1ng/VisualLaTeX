@@ -20,7 +20,9 @@
         node.setAttribute('title', detail + (description.editable === false ? '' : ' · 点击或按 Enter 编辑'));
         // Replacing child text on every keystroke would disturb a selection next
         // to the atom. Only refresh when the derived presentation changes.
-        const presentation = symbols[description.kind] + ' ' + label;
+        const presentation = description.kind === 'label' ? label.replace(/^标签[：:]\s*/, '# ')
+            : ['include', 'bibliography', 'style'].includes(description.kind) ? label
+            : symbols[description.kind] + ' ' + label;
         if (node.textContent !== presentation) node.textContent = presentation;
         return description;
     }

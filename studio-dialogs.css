@@ -1,0 +1,236 @@
+/* The editing tools are small, focused work surfaces above the document. */
+.workspace-app .modal-overlay,
+.workspace-app .workspace-dialog-overlay {
+    padding: 24px;
+    background: rgb(28 34 53 / 36%);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+}
+
+.workspace-app .modal-dialog,
+.workspace-app .workspace-dialog {
+    max-width: calc(100vw - 48px);
+    max-height: calc(100dvh - 48px);
+    border: 1px solid rgb(255 255 255 / 70%);
+    border-radius: 16px;
+    background: #fff;
+    color: #242733;
+    box-shadow: 0 24px 80px rgb(29 36 59 / 18%), 0 3px 12px rgb(29 36 59 / 8%);
+    font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+    animation: studio-dialog-enter 150ms ease-out both;
+}
+
+.workspace-app .modal-dialog { width: 730px; max-width: min(730px, calc(100vw - 48px)); }
+.workspace-app .modal-header {
+    flex: 0 0 auto;
+    min-height: 76px;
+    padding: 20px 26px;
+    border-bottom: 1px solid #e1e5ee;
+    background: #fff;
+    color: #242733;
+}
+.workspace-app .modal-title { font-size: 19px; font-weight: 650; letter-spacing: -.3px; }
+.workspace-app .modal-title::before {
+    content: "ƒ";
+    display: inline-grid;
+    place-items: center;
+    width: 33px;
+    height: 33px;
+    margin-right: 11px;
+    border-radius: 9px;
+    background: #eef0ff;
+    color: #4b5fdb;
+    font: italic 26px/1 Cambria, Georgia, serif;
+    vertical-align: middle;
+}
+.workspace-app .modal-close {
+    display: inline-grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: 34px;
+    min-height: 34px;
+    height: 34px;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    background: #f3f4f7;
+    color: #737b8c;
+    font-size: 23px;
+    font-weight: 400;
+    line-height: 1;
+}
+.workspace-app .modal-close:hover { background: #e9ecf4; color: #242733; }
+.workspace-app .modal-body { padding: 22px 26px 24px; overscroll-behavior: contain; }
+
+.workspace-app .formula-mode-row { gap: 8px; margin: 0 0 16px; }
+.workspace-app .mode-option {
+    gap: 7px;
+    padding: 7px 11px;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    background: #f3f4f7;
+    color: #737b8c;
+    font-size: 12px;
+    line-height: 1.5;
+}
+.workspace-app .mode-option:has(input:checked) { border-color: #dce1fb; background: #eef0ff; color: #3f51bc; }
+.workspace-app .mode-option input { margin: 0; accent-color: #4b5fdb; }
+.workspace-app .mode-option:has(input:disabled) { cursor: default; }
+.workspace-app .symbol-palette {
+    gap: 5px;
+    max-height: 148px;
+    margin: 0 0 18px;
+    padding: 9px;
+    border: 1px solid #e1e5ee;
+    border-radius: 10px;
+    background: #f8f9fc;
+    scrollbar-width: thin;
+}
+.workspace-app .symbol-palette button {
+    min-width: 33px;
+    min-height: 32px;
+    padding: 5px 9px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: #fff;
+    color: #485064;
+    box-shadow: 0 1px 2px rgb(32 39 58 / 5%);
+    font: 12px/1.5 "Segoe UI", "Microsoft YaHei", sans-serif;
+}
+.workspace-app .symbol-palette button:hover {
+    border-color: #dce1fb;
+    background: #eef0ff;
+    color: #3f51bc;
+}
+.workspace-app #formulaMathField {
+    min-height: 120px;
+    padding: 23px 20px;
+    border: 1px solid #d7dce8;
+    border-radius: 11px;
+    background: #fff;
+    color: #242733;
+    font-size: 29px;
+    outline: 0;
+    box-shadow: inset 0 1px 3px rgb(35 42 61 / 3%);
+    --caret-color: #4b5fdb;
+    --selection-background-color: #e0e5ff;
+    --selection-color: #242733;
+}
+.workspace-app #formulaMathField:focus,
+.workspace-app #formulaMathField:focus-visible,
+.workspace-app #formulaMathField:focus-within {
+    border-color: #6575df;
+    outline: 0;
+    box-shadow: 0 0 0 3px rgb(75 95 219 / 11%);
+}
+.workspace-app #formulaMathField::part(virtual-keyboard-toggle) { color: #737b8c; border-radius: 6px; }
+.workspace-app .formula-help { margin: 11px 1px 16px; color: #737b8c; font-size: 12px; line-height: 1.75; }
+.workspace-app #formulaMetadata { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.workspace-app #formulaMetadata label { min-width: 0; margin: 0 0 12px; color: #555e71; font-size: 12px; font-weight: 550; line-height: 1.6; }
+.workspace-app #formulaMetadata label:only-child { grid-column: 1 / -1; }
+.workspace-app #formulaMetadata input,
+.workspace-app .workspace-dialog input,
+.workspace-app .workspace-dialog select,
+.workspace-app #formulaInput {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 42px;
+    padding: 10px 12px;
+    border: 1px solid #d7dce8;
+    border-radius: 8px;
+    background: #fff;
+    color: #242733;
+    box-shadow: inset 0 1px 2px rgb(35 42 61 / 2%);
+    font: 13px/1.6 "Cascadia Code", Consolas, monospace;
+}
+.workspace-app #formulaMetadata input { margin-top: 7px; }
+.workspace-app .workspace-dialog select { padding-right: 28px; font-family: "Segoe UI", "Microsoft YaHei", sans-serif; }
+.workspace-app .workspace-dialog input:focus-visible,
+.workspace-app .workspace-dialog select:focus-visible,
+.workspace-app #formulaMetadata input:focus-visible,
+.workspace-app #formulaInput:focus-visible {
+    border-color: #6575df;
+    outline: 0;
+    box-shadow: 0 0 0 3px rgb(75 95 219 / 11%);
+}
+.workspace-app .formula-advanced { margin-top: 14px; color: #737b8c; font-size: 12px; }
+.workspace-app .formula-advanced summary { width: fit-content; padding: 3px 0; cursor: pointer; }
+.workspace-app .formula-advanced summary:hover { color: #4b5fdb; }
+.workspace-app #formulaInput { min-height: 104px; margin-top: 12px; background: #f8f9fc; resize: vertical; }
+.workspace-app #formulaError,
+.workspace-app .reference-dialog .reference-error { margin: 9px 0 0; min-height: 0; color: #a83f4a; font-size: 12px; line-height: 1.7; }
+.workspace-app #formulaError:empty,
+.workspace-app .reference-dialog .reference-error:empty { margin: 0; }
+.workspace-app .reference-dialog input[aria-invalid="true"] { border-color: #b95c65; }
+
+.workspace-app .modal-actions,
+.workspace-app .workspace-dialog-actions { gap: 9px; margin-top: 22px; padding-top: 18px; border-top: 1px solid #e1e5ee; }
+.workspace-app .modal-dialog > .modal-actions { flex: 0 0 auto; align-items: center; justify-content: space-between; margin: 0; padding: 16px 26px; background: white; }
+.workspace-app .formula-shortcut { color: #949cac; font: 10px/1.5 "Segoe UI", "Microsoft YaHei", sans-serif; }
+.workspace-app .modal-actions button,
+.workspace-app .workspace-dialog-actions button {
+    min-height: 40px;
+    padding: 9px 20px;
+    border: 1px solid #dce1eb;
+    border-radius: 8px;
+    background: #fff;
+    color: #555e71;
+    font-size: 13px;
+    font-weight: 550;
+}
+.workspace-app .modal-actions button:hover,
+.workspace-app .workspace-dialog-actions button:hover { border-color: #cbd1e0; background: #f3f4f7; }
+.workspace-app .modal-actions #btnInsertFormula,
+.workspace-app .workspace-dialog-actions #referenceAccept,
+.workspace-app .workspace-dialog-actions #workspaceDialogAccept {
+    border-color: #4b5fdb;
+    background: #4b5fdb;
+    color: #fff;
+    box-shadow: 0 2px 3px rgb(75 95 219 / 12%);
+}
+.workspace-app .modal-actions #btnInsertFormula:hover,
+.workspace-app .workspace-dialog-actions #referenceAccept:hover,
+.workspace-app .workspace-dialog-actions #workspaceDialogAccept:hover { border-color: #3f51bc; background: #3f51bc; }
+
+.workspace-app .workspace-dialog { width: min(480px, 100%); overflow-y: auto; overscroll-behavior: contain; padding: 28px; }
+.workspace-app .workspace-dialog.reference-dialog { width: min(560px, 100%); }
+.workspace-app .workspace-dialog h2 { margin: 0 0 11px; color: #242733; font-size: 20px; font-weight: 650; letter-spacing: -.4px; }
+.workspace-app .workspace-dialog label { margin: 18px 0 8px; color: #555e71; font-size: 12px; font-weight: 550; line-height: 1.7; }
+.workspace-app .workspace-dialog .reference-hint { margin: 0 0 24px; color: #737b8c; font-size: 13px; line-height: 1.8; }
+.workspace-app .workspace-dialog #workspaceDialogMessage { margin: 0 0 18px; color: #737b8c; font-size: 13px; font-weight: 400; }
+.workspace-app .workspace-dialog select:disabled { background: #f3f4f7; color: #737b8c; }
+.workspace-app .modal-dialog :is(button, summary):focus-visible,
+.workspace-app .workspace-dialog button:focus-visible { outline: 2px solid #4b5fdb; outline-offset: 3px; }
+
+@keyframes studio-dialog-enter {
+    from { opacity: .65; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+@media (max-width: 600px) {
+    .workspace-app .modal-overlay,
+    .workspace-app .workspace-dialog-overlay { padding: 12px; }
+    .workspace-app .modal-overlay { align-items: center; }
+    .workspace-app .modal-dialog,
+    .workspace-app .workspace-dialog { max-width: calc(100vw - 24px); max-height: calc(100dvh - 24px); border-radius: 14px; }
+    .workspace-app .modal-header { min-height: 66px; padding: 14px 18px; }
+    .workspace-app .modal-title { font-size: 17px; }
+    .workspace-app .modal-body { padding: 18px; }
+    .workspace-app .modal-dialog > .modal-actions { padding: 12px 18px; }
+    .workspace-app .formula-shortcut { max-width: 110px; font-size: 9px; }
+    .workspace-app .modal-close { width: 40px; height: 40px; min-height: 40px; }
+    .workspace-app .symbol-palette { max-height: 158px; padding: 7px; gap: 5px; }
+    .workspace-app .symbol-palette button { min-width: 39px; min-height: 40px; padding: 7px 10px; }
+    .workspace-app #formulaMathField { min-height: 110px; padding: 20px 14px; font-size: 25px; }
+    .workspace-app #formulaMetadata { grid-template-columns: minmax(0, 1fr); gap: 0; }
+    .workspace-app .workspace-dialog { padding: 23px; }
+    .workspace-app #formulaMetadata input,
+    .workspace-app .workspace-dialog input,
+    .workspace-app .workspace-dialog select,
+    .workspace-app #formulaInput { min-height: 44px; font-size: 16px; }
+    .workspace-app .modal-actions button,
+    .workspace-app .workspace-dialog-actions button { min-height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .workspace-app .modal-dialog,
+    .workspace-app .workspace-dialog { animation: none; }
+}

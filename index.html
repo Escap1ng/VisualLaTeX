@@ -9,11 +9,14 @@
     <link rel="stylesheet" href="preview.css">
     <link rel="stylesheet" href="visual-references-ui.css">
     <link rel="stylesheet" href="visual-math.css">
+    <link rel="stylesheet" href="studio.css">
+    <link rel="stylesheet" href="studio-dialogs.css">
 </head>
 <body class="workspace-app">
     <div class="container">
         <header class="workspace-header">
             <div class="brand-block">
+                <span class="brand-monogram" aria-hidden="true">V</span>
                 <h1>VisualLaTeX <span>Studio</span></h1>
                 <span class="language-signature" aria-label="支持 LaTeX 和 PostScript">TeX <span aria-hidden="true">/</span> PS</span>
             </div>
@@ -22,18 +25,18 @@
                 <input id="projectName" type="text" value="我的项目" maxlength="120" autocomplete="off" aria-label="项目名称">
             </div>
             <div class="project-actions" aria-label="项目操作">
-                <button id="btnNewProject" type="button">新建项目</button>
-                <button id="btnImportProject" type="button" title="打开 ZIP 或项目备份">打开项目</button>
-                <button id="btnExportProject" class="primary" type="button">导出 ZIP</button>
+                <button id="btnNewProject" type="button" class="icon-button" aria-label="新建项目" title="新建项目"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14"/></svg><span class="button-label">新建项目</span></button>
+                <button id="btnImportProject" type="button" title="打开 ZIP 或项目备份" class="icon-button" aria-label="打开项目"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1Z"/></svg><span class="button-label">打开项目</span></button>
+                <button id="btnExportProject" type="button" class="icon-button" aria-label="导出 ZIP" title="导出 ZIP"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v12h14V8M10 12h4"/></svg><span class="button-label">导出 ZIP</span></button>
             </div>
         </header>
 
         <nav class="toolbar workspace-toolbar" aria-label="编辑工具">
             <div class="tool-group">
-                <button id="btnFiles" type="button" aria-controls="fileSidebar" aria-expanded="false">文件</button>
-                <button id="btnUndo" type="button" title="撤销（Ctrl+Z）">撤销</button>
-                <button id="btnRedo" type="button" title="重做（Ctrl+Shift+Z）">重做</button>
-                <button id="btnFind" type="button" title="查找与替换（Ctrl+F）" aria-controls="findPanel">查找替换</button>
+                <button id="btnFiles" type="button" aria-controls="fileSidebar" aria-expanded="false" class="icon-button icon-only" aria-label="项目文件" title="项目文件"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1Z"/></svg><span class="button-label">文件</span></button>
+                <button id="btnUndo" type="button" title="撤销（Ctrl+Z）" class="icon-button icon-only" aria-label="撤销"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 5 4 9l5 4M4 9h9a6 6 0 0 1 6 6v3"/></svg><span class="button-label">撤销</span></button>
+                <button id="btnRedo" type="button" title="重做（Ctrl+Shift+Z）" class="icon-button icon-only" aria-label="重做"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m15 5 5 4-5 4m5-4h-9a6 6 0 0 0-6 6v3"/></svg><span class="button-label">重做</span></button>
+                <button id="btnFind" type="button" title="查找与替换（Ctrl+F）" aria-controls="findPanel" class="icon-button icon-only" aria-label="查找替换"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><span class="button-label">查找替换</span></button>
             </div>
             <div class="separator" aria-hidden="true"></div>
             <div class="tool-group format-tools" aria-label="LaTeX 格式">
@@ -42,18 +45,18 @@
                 <button id="btnH3" type="button" title="三级标题 · \subsubsection">H3</button>
                 <button id="btnBold" type="button" title="加粗"><b>B</b></button>
                 <button id="btnItalic" type="button" title="斜体"><i>I</i></button>
-                <button id="btnCenter" type="button">居中</button>
-                <button id="btnUl" type="button" title="无序列表">无序列表</button>
-                <button id="btnOl" type="button" title="有序列表">有序列表</button>
-                <button id="btnInlineFormula" type="button" title="行内公式">$ 公式</button>
-                <button id="btnBlockFormula" type="button" title="行间公式">$$ 公式</button>
-                <button id="btnImage" type="button">图片</button>
+                <button id="btnCenter" type="button" class="icon-button icon-only" aria-label="居中" title="居中"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 5h16M7 10h10M4 15h16M7 20h10"/></svg><span class="button-label">居中</span></button>
+                <button id="btnUl" type="button" title="无序列表" class="icon-button icon-only" aria-label="无序列表"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M8 6h12M8 12h12M8 18h12"/><circle cx="3.5" cy="6" r=".7"/><circle cx="3.5" cy="12" r=".7"/><circle cx="3.5" cy="18" r=".7"/></svg><span class="button-label">无序列表</span></button>
+                <button id="btnOl" type="button" title="有序列表" class="icon-button icon-only" aria-label="有序列表"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 6h12M9 12h12M9 18h12M3 4h1v5M2 9h4M2 14c0-2 4-2 4 0 0 1-4 3-4 5h4"/></svg><span class="button-label">有序列表</span></button>
+                <button id="btnInlineFormula" type="button" title="行内公式"><span class="math-tool-sign" aria-hidden="true">ƒ</span>公式</button>
+                <button id="btnBlockFormula" type="button" title="行间公式"><span class="math-tool-sign" aria-hidden="true">∑</span>行间</button>
+                <button id="btnImage" type="button" class="icon-button icon-only" aria-label="插入图片" title="插入图片"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8" cy="8" r="1.5"/><path d="m3 17 5-5 4 4 4-6 5 7"/></svg><span class="button-label">图片</span></button>
             </div>
             <div class="separator" aria-hidden="true"></div>
             <div class="tool-group">
-                <button id="btnCopy" type="button" title="复制当前文件源码">复制</button>
-                <button id="btnDownload" type="button" title="下载当前文件">下载文件</button>
-                <button id="btnOutline" type="button" aria-controls="contextSidebar" aria-expanded="false">结构与引用</button>
+                <button id="btnCopy" type="button" title="复制当前文件源码" class="icon-button icon-only" aria-label="复制"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M15 8V4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h4"/></svg><span class="button-label">复制</span></button>
+                <button id="btnDownload" type="button" title="下载当前文件" class="icon-button icon-only" aria-label="下载文件"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3v12m-4-4 4 4 4-4M4 16v4h16v-4"/></svg><span class="button-label">下载文件</span></button>
+                <button id="btnOutline" type="button" aria-controls="contextSidebar" aria-expanded="false" class="icon-button icon-only" aria-label="结构与引用" title="结构与引用"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 5h16M8 10h12M8 15h12M4 20h16"/></svg><span class="button-label">结构与引用</span></button>
             </div>
         </nav>
 
@@ -63,9 +66,9 @@
             <button id="btnCompile" class="primary" type="button" title="编译预览（Ctrl+Enter）" disabled>编译预览</button>
             <button id="btnCancelCompile" type="button" hidden>取消编译</button>
             <button id="btnExportPdf" type="button" disabled>导出 PDF</button>
-            <button id="btnTogglePreview" type="button" aria-controls="pdfPreviewPane" aria-expanded="false">PDF 预览</button>
+            <button id="btnTogglePreview" type="button" aria-controls="pdfPreviewPane" aria-expanded="false" class="icon-button icon-only" aria-label="PDF 预览" title="PDF 预览"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M13 4v16"/></svg><span class="button-label">PDF 预览</span></button>
             <span id="compilerStatus" class="compiler-status">本机编译</span>
-            <button id="btnCompilerRetry" type="button" title="重新检测本机编译服务">重新检测</button>
+            <button id="btnCompilerRetry" type="button" title="重新检测本机编译服务" class="icon-button icon-only" aria-label="重新检测编译服务"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 7v5h-5M4 17v-5h5M5 8a8 8 0 0 1 13-3l2 3M4 16l2 3a8 8 0 0 0 13-3"/></svg><span class="button-label">重新检测</span></button>
         </div>
 
         <div class="workbench main-content" id="workspaceShell">
@@ -84,7 +87,7 @@
                     <button id="setMainFile" type="button">设为主文件</button>
                     <button id="deleteFile" class="quiet-danger" type="button">删除</button>
                 </div>
-                <p class="sidebar-note">文件保存在当前浏览器中。导出 ZIP 可备份整个项目。</p>
+                <p class="sidebar-note">自动保存在本机 · 导出 ZIP 备份项目</p>
             </aside>
 
             <main class="document-pane" aria-label="文件编辑器">
@@ -124,7 +127,7 @@
                 </div>
 
                 <div id="visualPanel" class="visual-panel">
-                    <div id="visualEditingHelp" class="mode-note">直接修改文字与标题；点击公式、文献引用或标签即可编辑，按 Enter 也可打开。</div>
+                    <div id="visualEditingHelp" class="mode-note">点击文字、公式或引用，直接编辑</div>
                     <div id="editorArea" class="editor-area" contenteditable="true" role="textbox" aria-label="LaTeX 可视化编辑区" aria-describedby="visualEditingHelp" aria-multiline="true"></div>
                 </div>
 
@@ -155,7 +158,7 @@
                         <button id="btnAddBibEntry" type="button">新增文献条目</button>
                     </div>
                     <div id="referenceList" class="context-list" aria-label="项目中的标签与参考文献"></div>
-                    <p class="sidebar-note">点击正文中的引用或标签直接编辑。引用显示项目中的标题和文献信息，最终编号以编译结果为准。</p>
+                    <p class="sidebar-note">点击正文引用即可编辑。正式编号以 PDF 编译结果为准。</p>
                 </section>
             </aside>
 
@@ -220,18 +223,18 @@
                         <label class="mode-option"><input type="radio" name="formulaMode" value="inline" checked><span>行内公式</span></label>
                         <label class="mode-option"><input type="radio" name="formulaMode" value="block"><span>行间公式</span></label>
                     </div>
-                    <div class="symbol-palette" id="symbolPalette"></div>
                     <math-field id="formulaMathField" aria-label="可视化公式编辑器" math-virtual-keyboard-policy="manual"></math-field>
                     <p class="formula-help">直接点击公式中的数字、分子、分母或上下标修改；上方按钮可插入数学结构。</p>
+                    <div class="symbol-palette" id="symbolPalette"></div>
                     <div id="formulaMetadata"></div>
                     <p id="formulaError" role="alert"></p>
                     <details class="formula-advanced"><summary>高级 LaTeX 输入（可选）</summary>
                         <label class="visually-hidden" for="formulaInput">LaTeX 公式</label>
                         <textarea id="formulaInput" rows="4" spellcheck="false" placeholder="LaTeX 公式"></textarea>
                     </details>
-                    <div class="modal-actions"><button class="btn-insert" id="btnInsertFormula" type="button">插入公式</button></div>
                 </div>
             </div>
+            <div class="modal-actions"><span class="formula-shortcut">Esc 取消 · Ctrl + Enter 确认</span><button class="btn-insert" id="btnInsertFormula" type="button">插入公式</button></div>
         </div>
     </div>
 

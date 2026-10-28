@@ -2,6 +2,10 @@
 
 **Import a document, edit it visually, then export—with multiple files, PostScript and local PDF compilation.**
 
+The workspace centers the manuscript, with compact editing and compile controls, consistent icons, paper typography, and focused dialogs. Formula confirmation stays visible in the dialog footer.
+
+![VisualLaTeX Studio](screenshots/studio-workspace.jpg)
+
 This workspace edition continues [Escap1ng/VisualLaTeX](https://github.com/Escap1ng/VisualLaTeX)'s purpose of visually modifying existing LaTeX documents, adding full source access, multiple files, references, bibliography entries, ZIP projects and real compilation. It bundles MathLive 0.111.1 (MIT) and its fonts for formula editing. Offline editing needs no npm installation or build step. Compilation uses Node.js 22+ and a local typesetting toolchain.
 
 **Complete LaTeX documents open in Visual editing by default.** Edit text and headings directly and use the formatting toolbar. Click a typeset formula to edit fractions, superscripts and subscripts in a graphical math field. References and labels appear as readable items that open an editor when clicked, without switching to source. Untouched source stays intact, and the current session remembers the selected editing mode for each file.

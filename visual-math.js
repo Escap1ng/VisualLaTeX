@@ -215,7 +215,7 @@
             if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
                 event.preventDefault(); event.stopPropagation(); document.getElementById('btnInsertFormula').click();
             }
-        });
+        }, true); // Run before MathLive's matrix shortcut can insert another row.
     }
     root.VisualMath = {split,combine,safe,unwrap,mathValue,open,value,initialize,
         close(){session=null;}, insert(latex){
