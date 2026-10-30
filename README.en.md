@@ -4,7 +4,7 @@
 
 **Import · Tweak · Export — an offline LaTeX light editor that preserves original source**
 
-[![Version](https://img.shields.io/badge/Version-v2.0.2-6f42c1)](https://github.com/Escap1ng/VisualLaTeX/releases)
+[![Version](https://img.shields.io/badge/Version-v2.0.3-6f42c1)](https://github.com/Escap1ng/VisualLaTeX/releases)
 [![License](https://img.shields.io/badge/License-Apache_2.0-0366d6)](./LICENSE)
 [![CI](https://github.com/Escap1ng/VisualLaTeX/actions/workflows/ci.yml/badge.svg)](https://github.com/Escap1ng/VisualLaTeX/actions/workflows/ci.yml)
 [![Online Demo](https://img.shields.io/badge/Online_Demo-GitHub_Pages-00b4d8)](https://Escap1ng.github.io/VisualLaTeX/)
@@ -116,6 +116,7 @@ Import the `.tex` you want to touch up → make visual text and structure adjust
 <details>
 <summary><b>Version History</b></summary>
 
+- **v2.0.3**: fixed import data loss and HTML injection — the `.tex` parser now reads commands, environments, math and verbatim blocks, so untouched source blocks are preserved byte for byte; added `\(...\)` and `\[...\]` delimiters plus `\verb` and `\lstinline` support; double-click a visual formula to edit it; drafts are saved atomically with a version marker and flushed when the page is hidden, and legacy drafts are sanitized before restore; added 70 `node --test` regression tests
 - **v2.0.2**: mobile and narrow-viewport adaptation — one panel per screen with bottom tabs switching between the editor and LaTeX code, toolbar collapsed into a single horizontally scrollable row with >=44px touch targets, `min-height:0` fix so the code preview is no longer clipped off-screen, `100dvh` and 16px inputs so iOS no longer zooms the page on focus; LaTeX conversion and export logic unchanged
 - **v2.0.1**: maintenance release, main.js unchanged; license moved from MIT to Apache-2.0; UI restyled with design tokens and a warm-white academic theme, toolbar buttons switched to plain text; added CI checks and automatic GitHub Pages demo deployment
 - **v2.0.0**: repositioned as a general offline LaTeX light editor; added .tex import; verbatim preservation of unsupported structures for lossless round-trips; fixed preamble not being cached with drafts and formulas losing user edits

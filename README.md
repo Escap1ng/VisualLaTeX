@@ -4,7 +4,7 @@
 
 **导入 · 轻改 · 导出 —— 保留原文的离线 LaTeX 轻编辑器**
 
-[![Version](https://img.shields.io/badge/Version-v2.0.2-6f42c1)](https://github.com/Escap1ng/VisualLaTeX/releases)
+[![Version](https://img.shields.io/badge/Version-v2.0.3-6f42c1)](https://github.com/Escap1ng/VisualLaTeX/releases)
 [![License](https://img.shields.io/badge/License-Apache_2.0-0366d6)](./LICENSE)
 [![CI](https://github.com/Escap1ng/VisualLaTeX/actions/workflows/ci.yml/badge.svg)](https://github.com/Escap1ng/VisualLaTeX/actions/workflows/ci.yml)
 [![Online Demo](https://img.shields.io/badge/Online_Demo-GitHub_Pages-00b4d8)](https://Escap1ng.github.io/VisualLaTeX/)
@@ -116,6 +116,7 @@ node --test
 <details>
 <summary><b>版本历史</b></summary>
 
+- **v2.0.3**：修复导入丢内容与 HTML 注入——重写 `.tex` 解析，按命令、环境、数学、逐字块读取，未编辑的源码块逐字节保留；新增 `\(...\)`、`\[...\]` 定界符与 `\verb`、`\lstinline` 支持；双击已有公式可编辑；草稿按版本原子保存并在离开页面时落盘，旧草稿恢复前先清洗；新增 `node --test` 回归测试 70 例
 - **v2.0.2**：手机端与窄屏适配——一屏一个面板，底部 tab 在编辑区与 LaTeX 代码间切换；工具栏收成单行横向滑动，触控目标 ≥44px；补 `min-height:0` 修复代码预览被裁出屏幕；改用 `100dvh` 与 16px 输入框，iOS 聚焦不再放大整页；LaTeX 转换与导出逻辑未改动
 - **v2.0.1**：维护版本，main.js 未作修改；许可证由 MIT 改为 Apache-2.0；界面改用 design tokens 与学术暖白主题，工具栏按钮改为纯文本；新增 CI 检查与 GitHub Pages 在线演示的自动部署
 - **v2.0.0**：去垂直化改造，转型为通用离线 LaTeX 轻编辑器；新增 .tex 导入；未支持结构原样保留，实现往返保真；修复导言区不随草稿缓存、公式误改丢数据等问题
