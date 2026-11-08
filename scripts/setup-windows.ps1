@@ -6,7 +6,8 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 if (-not [Environment]::Is64BitOperatingSystem) { throw 'The portable compilers require 64-bit Windows.' }
 [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
-$toolsRoot = Join-Path $PSScriptRoot '.tools'
+$projectRoot = Split-Path -Parent $PSScriptRoot
+$toolsRoot = Join-Path $projectRoot '.tools'
 $downloads = Join-Path $toolsRoot 'downloads'
 foreach ($directory in @($toolsRoot, $downloads)) {
     if ((Test-Path -LiteralPath $directory) -and ((Get-Item -LiteralPath $directory).Attributes -band [IO.FileAttributes]::ReparsePoint)) {
@@ -90,5 +91,5 @@ New-Item -ItemType Directory -Path (Join-Path $toolsRoot 'cache') -Force | Out-N
 if ($LASTEXITCODE -ne 0) { throw 'Tectonic could not start. Check the Microsoft Visual C++ runtime and the tool documentation.' }
 & $ghostscriptExe --version
 if ($LASTEXITCODE -ne 0) { throw 'Ghostscript could not start. Check the Microsoft Visual C++ runtime and the tool documentation.' }
-Write-Host 'Portable tools are ready in .tools. Run .\start.ps1 to open the local workspace service.'
+Write-Host 'Portable tools are ready in .tools. Run .\scripts\start.ps1 to open the local workspace service.'
 Write-Host 'Tectonic downloads missing TeX support files during the first compilation; project source is compiled locally.'

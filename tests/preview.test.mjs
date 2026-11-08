@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 
-const code = fs.readFileSync(new URL('../preview.js', import.meta.url), 'utf8');
+const code = fs.readFileSync(new URL('../src/js/preview.js', import.meta.url), 'utf8');
 const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const engines = {latex: {available: true, engine: 'tectonic', label: 'Tectonic'},
     postscript: {available: true, engine: 'ghostscript', label: 'Ghostscript'}};
@@ -54,7 +54,7 @@ test('file mode makes no requests and explains how to enable local compilation',
     const f = fixture({protocol: 'file:'});
     assert.equal(await f.controller.connect(), false);
     assert.equal(f.controller.phase, 'unavailable');
-    assert.match(f.controller.message, /node server\.mjs/);
+    assert.match(f.controller.message, /node server\/server\.mjs/);
     assert.equal(await f.controller.compile(), false);
     assert.equal(f.calls.length, 0);
 });

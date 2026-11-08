@@ -6,7 +6,7 @@ import {createDocument, Element} from './helpers/dom.mjs';
 
 // Uses the actual workspace controller and actual LaTeX importer/exporter.
 // The DOM fixture has no layout, rendering, script execution or browser event loop.
-const scripts = ['main.js', 'project-model.js', 'workspace.js'].map(name => fs.readFileSync(new URL('../' + name, import.meta.url), 'utf8'));
+const scripts = ['main.js', 'project-model.js', 'workspace.js'].map(name => fs.readFileSync(new URL('../src/js/' + name, import.meta.url), 'utf8'));
 const tex = body => '\\documentclass{article}\n\\begin{document}\n' + body + '\n\\end{document}\n';
 const textFile = (path, text) => ({path, kind: 'text', text, encoding: 'utf-8'});
 

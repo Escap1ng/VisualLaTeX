@@ -6,7 +6,7 @@
 
 ![VisualLaTeX Studio](screenshots/studio-workspace.jpg)
 
-VisualLaTeX Studio 延续可视化修改现有 LaTeX 文档的用途，并增加完整源码、多文件项目、参考文献、ZIP 管理及真实编译。公式编辑内置 MathLive 0.111.1（MIT）及其字体，无需 npm 安装或构建即可离线编辑；编译需要 Node.js 22+ 和相应工具链。
+VisualLaTeX Studio 延续可视化修改现有 LaTeX 文档的用途，并增加完整源码、多文件项目、参考文献、ZIP 管理及真实编译。公式编辑内置 MathLive 0.111.1（MIT）及其字体，无需 npm 安装或构建即可离线编辑；编译需要 Node.js 22+ 和相应工具链。静态页面与本地服务共用同一套前端；编译、PDF 预览与导出只在本机服务中提供。
 
 **完整 LaTeX 文档默认进入「可视化编辑」。** 直接修改文字和标题，用工具栏调整格式；单击排版后的公式，使用图形输入框编辑分式、上下标等内容。引用和标签显示为可读条目，单击即可修改，无需切换源码。只修改需要改动的内容，保留其余源码；切换文件会记住当前会话中为各文件选择的编辑模式。
 
@@ -14,29 +14,36 @@ VisualLaTeX Studio 延续可视化修改现有 LaTeX 文档的用途，并增加
 
 ## 开始使用
 
-默认项目包含 `main.tex`、`references.bib` 和 `drawing.ps`。只需编辑时可以双击 `index.html`；需要预览和 PDF 导出时，按以下方式启动本地服务。
+默认项目包含 `main.tex`、`references.bib` 和 `drawing.ps`。同一套前端支持两种运行方式：
+
+| 运行方式 | 打开或启动 | 可用功能 |
+| --- | --- | --- |
+| 静态页面 | 双击 `index.html`，或访问 GitHub Pages | 可视化与源码编辑、多文件项目、导入导出、本机草稿；不编译 |
+| 本地服务 | `node server/server.mjs`，或 Windows 的 `scripts/start.ps1` | 静态页面的全部功能，另加 LaTeX / PostScript 编译、PDF 预览与导出 |
+
+只想编辑时双击 `index.html`；需要编译、预览或导出 PDF 时按下文启动本地服务。
 
 ### Windows
 
 安装 [Node.js 22 或更新版本](https://nodejs.org/en/download)，解压源码包，在该目录打开 PowerShell：
 
 ```powershell
-.\setup-windows.ps1
-.\start.ps1
+.\scripts\setup-windows.ps1
+.\scripts\start.ps1
 ```
 
-如果 PowerShell 的默认执行策略阻止脚本，可对这一次调用使用 `powershell -NoProfile -ExecutionPolicy Bypass -File .\setup-windows.ps1`，启动脚本同理；无需修改系统执行策略。
+如果 PowerShell 的默认执行策略阻止脚本，可对这一次调用使用 `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1`，启动脚本同理；无需修改系统执行策略。
 
-安装脚本下载固定版本的 Tectonic 0.17.0、Ghostscript 10.08.0 和解压工具，校验官方发布的 SHA-256 后放入当前目录的 `.tools`。它只解包安装器，不运行安装器、不写注册表、不覆盖项目文件。再次执行会保留已存在的工具；失败时下载和暂存文件会留在 `.tools` 便于检查。第三方引擎未包含在源码包中，各自许可保留在下载包内。
+安装脚本下载固定版本的 Tectonic 0.17.0、Ghostscript 10.08.0 和解压工具，校验官方发布的 SHA-256 后放入项目根目录的 `.tools`。它只解包安装器，不运行安装器、不写注册表、不覆盖项目文件。再次执行会保留已存在的工具；失败时下载和暂存文件会留在 `.tools` 便于检查。第三方引擎未包含在源码包中，各自许可保留在下载包内。
 
-启动后在浏览器打开终端显示的地址，默认是 `http://127.0.0.1:4173`。更换端口可用 `.\start.ps1 -Port 4174`。终端需保持运行；按 Ctrl+C 退出。
+启动后在浏览器打开终端显示的地址，默认是 `http://127.0.0.1:4173`。更换端口可用 `.\scripts\start.ps1 -Port 4174`。终端需保持运行；按 Ctrl+C 退出。
 
 ### macOS、Linux 或已有工具链
 
 安装 [Tectonic](https://tectonic-typesetting.github.io/book/latest/installation/index.html) 或 XeLaTeX，以及 [Ghostscript](https://ghostscript.com/releases/gsdnld.html)，确保可执行文件在 PATH 中，然后运行：
 
 ```bash
-node server.mjs
+node server/server.mjs
 ```
 
 也可用以下环境变量指定已有引擎的**可执行文件路径**：`VISUALLATEX_TECTONIC`、`VISUALLATEX_XELATEX`、`VISUALLATEX_GHOSTSCRIPT`；XeLaTeX 的文献工具可用 `VISUALLATEX_BIBTEX`、`VISUALLATEX_BIBER`。显式设置 XeLaTeX 可选择本机 TeX 发行版；不要同时指定两个 LaTeX 引擎。
@@ -75,9 +82,9 @@ Tectonic 首次编译会按需联网下载宏包和字体支持文件，之后�
 | 图片等资源 | 二进制文件按原始字节保存；二进制 EPS 保留为资源，可单独下载 |
 | 项目 ZIP | 导入 stored/deflate ZIP，导出标准 ZIP；包含未打开文件的编辑及原始资源 |
 | 本机草稿 | 整个项目单次保存；失败时显示状态；兼容旧版单文档草稿迁移 |
-| LaTeX 编译 | Tectonic 或 XeLaTeX，带项目文件与资源、引用及参考文献处理 |
-| PostScript 渲染 | Ghostscript 将 PS/EPS 转为 PDF；EPS 按 BoundingBox 裁切 |
-| PDF 预览与导出 | 编译目标选择、取消、错误日志、旧结果标记及当前版本导出 |
+| LaTeX 编译 | 仅本地服务：Tectonic 或 XeLaTeX，带项目文件与资源、引用及参考文献处理 |
+| PostScript 渲染 | 仅本地服务：Ghostscript 将 PS/EPS 转为 PDF；EPS 按 BoundingBox 裁切 |
+| PDF 预览与导出 | 仅本地服务：编译目标选择、取消、错误日志、旧结果标记及当前版本导出 |
 
 可视化引用使用项目中的章节标题、标签键和 BibTeX 作者、标题、年份等元数据帮助识别目标，不将这些提示当作编译后的引用编号或页码。最终引用编号、文献样式和公式排版以编译生成的 PDF 为准。
 
@@ -115,14 +122,18 @@ Tectonic 首次编译会按需联网下载宏包和字体支持文件，之后�
 Node.js 22+，无需安装 npm 包：
 
 ```bash
-node --check main.js
-node --check workspace.js
-node --check visual-math.js
-node --check visual-references.js
-node --check visual-references-ui.js
-node --check preview.js
-node --check compiler.mjs
-node --check server.mjs
+node --check src/js/main.js
+node --check src/js/workspace.js
+node --check src/js/project-model.js
+node --check src/js/project-archive.js
+node --check src/js/preview.js
+node --check src/js/visual-math.js
+node --check src/js/visual-references.js
+node --check src/js/visual-references-ui.js
+node --check vendor/mathlive/mathlive.min.js
+node --check server/compiler.mjs
+node --check server/pdf-preview.mjs
+node --check server/server.mjs
 node tests/smoke.mjs
 node --test
 ```
@@ -135,20 +146,37 @@ MathLive 的本地脚本、样式、字体和许可位于 `vendor/mathlive/`；[
 
 CI 检查 `main` / `dev` 的推送与 PR；部署和发布都在检查通过后执行。
 
+### 目录结构
+
+静态页面只依赖 `index.html`、`src/` 和 `vendor/`；`server/`、`scripts/`、`tests/` 用于本机编译、工具安装与开发。
+
 ```
-index.html / workspace.css  工作台界面
-workspace.js                文件、编辑模式、查找替换与导入导出协调
-project-model.js            源码、项目状态、历史、引用索引
-project-archive.js          无依赖 ZIP 读写
-main.js / style.css         LaTeX 解析、转换及可视化编辑核心
-visual-math.js / .css       公式排版、图形输入及公式标签编辑
-visual-references*.js/.css  引用语义、可读展示和编辑窗口
-vendor/mathlive/            MathLive 固定版本、字体、许可及校验清单
-preview.js / preview.css    编译状态、PDF 预览和导出界面
-compiler.mjs / server.mjs   本机编译工具与回环 HTTP 服务
-pdf-preview.mjs             有界的本机 PDF 分页图片渲染
-setup-windows.ps1 / start.ps1  Windows 便携工具安装与启动
-tests/                      零依赖回归测试
+index.html                         工作台入口
+src/js/                            前端脚本
+  main.js                          LaTeX 解析、转换及可视化编辑核心
+  workspace.js                     文件、编辑模式、查找替换与导入导出协调
+  project-model.js                 源码、项目状态、历史、引用索引
+  project-archive.js               无依赖 ZIP 读写
+  visual-math.js                   公式排版与图形输入
+  visual-references.js             引用语义与索引
+  visual-references-ui.js          引用编辑窗口
+  preview.js                       编译状态、PDF 预览与导出
+src/css/                           前端样式
+  style.css                        LaTeX 文档基础排版
+  workspace.css                    文件工作台与编辑区
+  preview.css                      PDF 预览与编译工具栏
+  visual-math.css                  公式显示与编辑
+  visual-references-ui.css         引用编辑窗口
+  studio.css                       Studio 主题、布局与响应式覆盖
+  studio-dialogs.css               工作台对话框
+vendor/mathlive/                   MathLive 固定版本、字体、许可及校验清单
+server/server.mjs                  回环 HTTP 服务与静态资源白名单
+server/compiler.mjs                Tectonic / XeLaTeX 编译
+server/pdf-preview.mjs             PDF 分页图片渲染
+scripts/setup-windows.ps1          Windows 便携工具安装
+scripts/start.ps1                  Windows 启动脚本
+tests/                             零依赖回归测试与浏览器验收清单
+screenshots/                       README 截图
 ```
 
 <details>

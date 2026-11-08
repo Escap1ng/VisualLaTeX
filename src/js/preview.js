@@ -62,7 +62,7 @@
             if (this.busy || this.disposed) return false;
             if (this.protocol !== 'http:' && this.protocol !== 'https:') {
                 this.phase = 'unavailable';
-                this.message = '编译预览需要本机服务：在项目目录运行 node server.mjs，再打开终端显示的网址。';
+                this.message = '编译预览需要本机服务：在项目目录运行 node server/server.mjs，再打开终端显示的网址。';
                 this.emit(); return false;
             }
             try {
@@ -76,7 +76,7 @@
             } catch (error) {
                 this.token = null;
                 this.phase = 'unavailable';
-                this.message = '无法连接编译服务。请运行 node server.mjs 并打开终端网址。' + error.message;
+                this.message = '无法连接编译服务。请运行 node server/server.mjs 并打开终端网址。' + error.message;
                 this.emit(); return false;
             }
         }

@@ -5,7 +5,7 @@ import vm from 'node:vm';
 
 const context = vm.createContext({TextEncoder});
 for (const name of ['project-model.js', 'visual-references.js']) {
-    vm.runInContext(fs.readFileSync(new URL('../' + name, import.meta.url), 'utf8'), context);
+    vm.runInContext(fs.readFileSync(new URL('../src/js/' + name, import.meta.url), 'utf8'), context);
 }
 const {ProjectModel, VisualReferences: api} = context;
 const plain = value => JSON.parse(JSON.stringify(value));

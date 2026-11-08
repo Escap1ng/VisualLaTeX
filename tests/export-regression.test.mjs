@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import test from 'node:test';
 
-const source = fs.readFileSync(new URL('../main.js', import.meta.url), 'utf8');
+const source = fs.readFileSync(new URL('../src/js/main.js', import.meta.url), 'utf8');
 const context = vm.createContext({document: {addEventListener() {}}, Node: {TEXT_NODE: 3, ELEMENT_NODE: 1}});
 vm.runInContext(source, context);
 

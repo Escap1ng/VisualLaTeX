@@ -6,7 +6,7 @@ The workspace centers the manuscript, with compact editing and compile controls,
 
 ![VisualLaTeX Studio](screenshots/studio-workspace.jpg)
 
-VisualLaTeX Studio continues VisualLaTeX's purpose of visually modifying existing LaTeX documents, adding full source access, multiple files, references, bibliography entries, ZIP projects and real compilation. It bundles MathLive 0.111.1 (MIT) and its fonts for formula editing. Offline editing needs no npm installation or build step. Compilation uses Node.js 22+ and a local typesetting toolchain.
+VisualLaTeX Studio continues VisualLaTeX's purpose of visually modifying existing LaTeX documents, adding full source access, multiple files, references, bibliography entries, ZIP projects and real compilation. It bundles MathLive 0.111.1 (MIT) and its fonts for formula editing. Offline editing needs no npm installation or build step. Compilation uses Node.js 22+ and a local typesetting toolchain. The static page and the local service share the same frontend; compilation, PDF preview and export are available only through the local service.
 
 **Complete LaTeX documents open in Visual editing by default.** Edit text and headings directly and use the formatting toolbar. Click a typeset formula to edit fractions, superscripts and subscripts in a graphical math field. References and labels appear as readable items that open an editor when clicked, without switching to source. Untouched source stays intact, and the current session remembers the selected editing mode for each file.
 
@@ -14,29 +14,36 @@ Source editing remains available for preambles, custom macros and complex struct
 
 ## Start
 
-The sample project contains `main.tex`, `references.bib` and `drawing.ps`. Opening `index.html` directly supports editing; use the local service for PDF preview and export.
+The sample project contains `main.tex`, `references.bib` and `drawing.ps`. The same frontend supports two ways to run:
+
+| Mode | Open or start | Available |
+| --- | --- | --- |
+| Static page | Open `index.html`, or visit GitHub Pages | Visual and source editing, multi-file projects, import/export, local drafts; no compilation |
+| Local service | `node server/server.mjs`, or `scripts/start.ps1` on Windows | Everything in the static page, plus LaTeX / PostScript compilation, PDF preview and export |
+
+Open `index.html` when you only need to edit; start the local service below for compilation, preview or PDF export.
 
 ### Windows
 
 Install [Node.js 22 or newer](https://nodejs.org/en/download), unpack this project and run PowerShell in its directory:
 
 ```powershell
-.\setup-windows.ps1
-.\start.ps1
+.\scripts\setup-windows.ps1
+.\scripts\start.ps1
 ```
 
-If PowerShell blocks scripts under its default policy, use `powershell -NoProfile -ExecutionPolicy Bypass -File .\setup-windows.ps1` for that invocation, and likewise for `start.ps1`. No system policy change is required.
+If PowerShell blocks scripts under its default policy, use `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1` for that invocation, and likewise for `scripts\start.ps1`. No system policy change is required.
 
-Setup downloads pinned official Tectonic 0.17.0, Ghostscript 10.08.0 and extraction tools, verifies their published SHA-256 digests, and unpacks them under `.tools`. It never runs the installers, changes the registry, or overwrites project files. Existing tools are retained on subsequent runs; failed downloads and staging files remain available for inspection. Third-party engine binaries are not distributed in this source archive; their licenses remain in their download packages.
+Setup downloads pinned official Tectonic 0.17.0, Ghostscript 10.08.0 and extraction tools, verifies their published SHA-256 digests, and unpacks them under `.tools` in the project root. It never runs the installers, changes the registry, or overwrites project files. Existing tools are retained on subsequent runs; failed downloads and staging files remain available for inspection. Third-party engine binaries are not distributed in this source archive; their licenses remain in their download packages.
 
-Open the address printed by the terminal, normally `http://127.0.0.1:4173`. Keep the terminal running and press Ctrl+C to stop. Use `.\start.ps1 -Port 4174` to choose another port.
+Open the address printed by the terminal, normally `http://127.0.0.1:4173`. Keep the terminal running and press Ctrl+C to stop. Use `.\scripts\start.ps1 -Port 4174` to choose another port.
 
 ### macOS, Linux or an existing toolchain
 
 Install [Tectonic](https://tectonic-typesetting.github.io/book/latest/installation/index.html) or XeLaTeX and [Ghostscript](https://ghostscript.com/releases/gsdnld.html), make their executables available on PATH, then run:
 
 ```bash
-node server.mjs
+node server/server.mjs
 ```
 
 Executable paths can also be supplied using `VISUALLATEX_TECTONIC`, `VISUALLATEX_XELATEX`, and `VISUALLATEX_GHOSTSCRIPT`. XeLaTeX bibliography tools accept `VISUALLATEX_BIBTEX` and `VISUALLATEX_BIBER`. Set XeLaTeX explicitly to choose an existing TeX distribution; do not configure both LaTeX engines at once.
@@ -75,9 +82,9 @@ Opening a folder or project replaces the current workspace after confirmation. A
 | Resources | Preserve original binary bytes, including binary EPS |
 | Archives | Read stored/deflated ZIP and export standard ZIP without packages |
 | Drafts | Atomic local project snapshots and legacy single-file migration |
-| LaTeX compilation | Tectonic or XeLaTeX with project files, resources, references and bibliography processing |
-| PostScript rendering | Ghostscript converts PS/EPS to PDF; EPS uses BoundingBox cropping |
-| PDF output | Target selection, preview, cancellation, logs, stale-result tracking and current-source export |
+| LaTeX compilation | Local service only: Tectonic or XeLaTeX with project files, resources, references and bibliography processing |
+| PostScript rendering | Local service only: Ghostscript converts PS/EPS to PDF; EPS uses BoundingBox cropping |
+| PDF output | Local service only: target selection, preview, cancellation, logs, stale-result tracking and current-source export |
 
 Reference displays use section titles, label keys and BibTeX metadata such as authors, titles and years to identify targets. They do not claim to show compiled citation numbers or page numbers. The compiled PDF determines final numbering, bibliography style and typesetting.
 
@@ -102,14 +109,18 @@ The service binds only to loopback and validates Host, Origin and a session toke
 Node.js 22+, no npm installation:
 
 ```bash
-node --check main.js
-node --check workspace.js
-node --check visual-math.js
-node --check visual-references.js
-node --check visual-references-ui.js
-node --check preview.js
-node --check compiler.mjs
-node --check server.mjs
+node --check src/js/main.js
+node --check src/js/workspace.js
+node --check src/js/project-model.js
+node --check src/js/project-archive.js
+node --check src/js/preview.js
+node --check src/js/visual-math.js
+node --check src/js/visual-references.js
+node --check src/js/visual-references-ui.js
+node --check vendor/mathlive/mathlive.min.js
+node --check server/compiler.mjs
+node --check server/pdf-preview.mjs
+node --check server/server.mjs
 node tests/smoke.mjs
 node --test
 ```
@@ -120,7 +131,40 @@ The pinned MathLive scripts, styles, fonts and license are in `vendor/mathlive/`
 
 See the [browser acceptance checklist](tests/browser-acceptance.md) for manual end-to-end validation. Actual engine validation in this iteration used Tectonic and Ghostscript; the XeLaTeX path has not yet been verified against a real distribution.
 
-`workspace.js` coordinates editing, `project-model.js` owns canonical source/history/indexes, and `project-archive.js` handles ZIP. `visual-math.js`/`.css` adapt MathLive for formula rendering and editing; `visual-references*.js`/`.css` provide reference semantics, readable displays and editing dialogs. `preview.js` manages PDF state and export; `compiler.mjs` and `server.mjs` run the local compilation service, while `pdf-preview.mjs` renders bounded page images. `setup-windows.ps1` and `start.ps1` prepare portable tools and start the service. The original `main.js` remains the visual LaTeX conversion core.
+`src/js/workspace.js` coordinates editing, `src/js/project-model.js` owns canonical source/history/indexes, and `src/js/project-archive.js` handles ZIP. `src/js/visual-math.js`/`src/css/visual-math.css` adapt MathLive for formula rendering and editing; `src/js/visual-references*.js`/`src/css/visual-references-ui.css` provide reference semantics, readable displays and editing dialogs. `src/js/preview.js` manages PDF state and export; `server/compiler.mjs` and `server/server.mjs` run the local compilation service, while `server/pdf-preview.mjs` renders bounded page images. `scripts/setup-windows.ps1` and `scripts/start.ps1` prepare portable tools and start the service. The original `src/js/main.js` remains the visual LaTeX conversion core.
+
+### Project layout
+
+The static page depends only on `index.html`, `src/` and `vendor/`; `server/`, `scripts/` and `tests/` support local compilation, tool installation and development.
+
+```
+index.html                         Workspace entry point
+src/js/                            Frontend scripts
+  main.js                          LaTeX parsing, conversion and visual editing core
+  workspace.js                     Files, edit modes, find/replace and import/export
+  project-model.js                 Source, project state, history and reference indexes
+  project-archive.js               Dependency-free ZIP reader/writer
+  visual-math.js                   Formula typesetting and graphical input
+  visual-references.js             Reference semantics and indexes
+  visual-references-ui.js          Reference editing dialog
+  preview.js                       Compilation state, PDF preview and export
+src/css/                           Frontend styles
+  style.css                        Base LaTeX document typography
+  workspace.css                    File workspace and editing area
+  preview.css                      PDF preview and compile toolbar
+  visual-math.css                  Formula display and editing
+  visual-references-ui.css         Reference editing dialog
+  studio.css                       Studio theme, layout and responsive overrides
+  studio-dialogs.css               Workspace dialogs
+vendor/mathlive/                   Pinned MathLive, fonts, license and manifest
+server/server.mjs                  Loopback HTTP service and static asset allowlist
+server/compiler.mjs                Tectonic / XeLaTeX compilation
+server/pdf-preview.mjs             Paginated PDF image rendering
+scripts/setup-windows.ps1          Portable Windows tool installation
+scripts/start.ps1                  Windows launcher
+tests/                             Zero-dependency regressions and browser checklist
+screenshots/                       README screenshots
+```
 
 <details>
 <summary><b>Version History</b></summary>

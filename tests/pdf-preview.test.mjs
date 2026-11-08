@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {mkdtemp, readdir, rm, writeFile} from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
-import {getPdfPreviewInfo, renderPdfPreviewPage, PREVIEW_LIMITS} from '../pdf-preview.mjs';
+import {getPdfPreviewInfo, renderPdfPreviewPage, PREVIEW_LIMITS} from '../server/pdf-preview.mjs';
 
 const pdf = Buffer.from('%PDF-1.7\nfixture\n%%EOF');
 const engine = {available: true, executable: '/configured/gs'};

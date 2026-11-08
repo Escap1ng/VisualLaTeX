@@ -5,13 +5,13 @@ import {constants} from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import './project-model.js';
+import '../src/js/project-model.js';
 
 const ProjectModel = globalThis.ProjectModel;
 const MAX_LOG_BYTES = 512 * 1024;
 const MAX_PDF_BYTES = 50 * 1024 * 1024;
 const DEFAULT_TIMEOUT_MS = 180000;
-const TOOL_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '.tools');
+const TOOL_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '.tools');
 
 export class CompilationError extends Error {
     constructor(message, code = 'COMPILE_FAILED', log = '') {

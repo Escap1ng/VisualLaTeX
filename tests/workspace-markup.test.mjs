@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-const controller = fs.readFileSync(new URL('../workspace.js', import.meta.url), 'utf8');
-const css = fs.readFileSync(new URL('../workspace.css', import.meta.url), 'utf8');
+const controller = fs.readFileSync(new URL('../src/js/workspace.js', import.meta.url), 'utf8');
+const css = fs.readFileSync(new URL('../src/css/workspace.css', import.meta.url), 'utf8');
 const tags = [...html.matchAll(/<([a-z][a-z\d-]*)\b([^>]*\bid="([^"]+)"[^>]*)>/gi)];
 const ids = new Map(tags.map(match => [match[3], {tag: match[1].toLowerCase(), attributes: match[2]}]));
 
@@ -37,11 +37,11 @@ test('dynamic toolbar arrays and project/editor controls have real markup', () =
 
 test('offline scripts and stylesheet overrides load in dependency order', () => {
     const scripts = [...html.matchAll(/<script\s+src="([^"]+)"[^>]*>/g)].map(match => match[1]);
-    assert.deepEqual(scripts, ['vendor/mathlive/mathlive.min.js', 'visual-math.js', 'main.js', 'project-model.js',
-        'project-archive.js', 'visual-references.js', 'visual-references-ui.js', 'workspace.js', 'preview.js']);
+    assert.deepEqual(scripts, ['vendor/mathlive/mathlive.min.js', 'src/js/visual-math.js', 'src/js/main.js', 'src/js/project-model.js',
+        'src/js/project-archive.js', 'src/js/visual-references.js', 'src/js/visual-references-ui.js', 'src/js/workspace.js', 'src/js/preview.js']);
     const styles = [...html.matchAll(/<link\s+rel="stylesheet"\s+href="([^"]+)"[^>]*>/g)].map(match => match[1]);
-    assert.deepEqual(styles, ['style.css', 'workspace.css', 'preview.css', 'visual-references-ui.css', 'visual-math.css',
-        'studio.css', 'studio-dialogs.css']);
+    assert.deepEqual(styles, ['src/css/style.css', 'src/css/workspace.css', 'src/css/preview.css', 'src/css/visual-references-ui.css', 'src/css/visual-math.css',
+        'src/css/studio.css', 'src/css/studio-dialogs.css']);
     for (const resource of [...scripts, ...styles]) {
         assert.doesNotMatch(resource, /^(?:https?:)?\/\//);
         assert.ok(fs.existsSync(new URL('../' + resource, import.meta.url)), `missing local resource ${resource}`);

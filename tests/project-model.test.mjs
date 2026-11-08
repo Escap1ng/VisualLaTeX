@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 
 const context = vm.createContext({TextEncoder});
-vm.runInContext(fs.readFileSync(new URL('../project-model.js', import.meta.url), 'utf8'), context);
+vm.runInContext(fs.readFileSync(new URL('../src/js/project-model.js', import.meta.url), 'utf8'), context);
 const ProjectModel = context.ProjectModel;
 const textFile = (path, text = '') => ({path, kind: 'text', text});
 const plain = value => JSON.parse(JSON.stringify(value));

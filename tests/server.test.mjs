@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
-import {createWorkspaceServer} from '../server.mjs';
+import {createWorkspaceServer} from '../server/server.mjs';
 
 const PDF = Buffer.from('%PDF-1.4\nfixture bytes\n%%EOF');
 const ENGINES = {latex: {available: true, engine: 'tectonic', label: 'Tectonic', executable: '/private/tectonic'},
@@ -41,20 +41,20 @@ test('loopback service serves only the UI assets and keeps compiler paths privat
     assert.match(page.headers.get('content-security-policy'), /frame-src blob:/);
     assert.equal(page.headers.get('x-content-type-options'), 'nosniff');
     assert.match(await page.text(), /VisualLaTeX/);
-    for (const path of ['/server.mjs', '/compiler.mjs', '/.git/config', '/README.md', '/..%2fserver.mjs']) {
+    for (const path of ['/server/server.mjs', '/server/compiler.mjs', '/.git/config', '/README.md', '/..%2fserver%2fserver.mjs']) {
         assert.equal((await fetch(f.url + path)).status, 404, path);
     }
 });
 
 test('visual editor modules and bundled math fonts have usable MIME types without exposing other vendor files', async t => {
     const f = await fixture(t);
-    for (const path of ['/visual-math.js', '/visual-references.js', '/visual-references-ui.js', '/vendor/mathlive/mathlive.min.js']) {
+    for (const path of ['/src/js/visual-math.js', '/src/js/visual-references.js', '/src/js/visual-references-ui.js', '/vendor/mathlive/mathlive.min.js']) {
         const response = await fetch(f.url + path);
         assert.equal(response.status, 200, path);
         assert.equal(response.headers.get('content-type'), 'text/javascript; charset=utf-8', path);
         assert.ok((await response.text()).length > 0, path);
     }
-    for (const path of ['/visual-math.css', '/visual-references-ui.css', '/studio.css', '/studio-dialogs.css',
+    for (const path of ['/src/css/visual-math.css', '/src/css/visual-references-ui.css', '/src/css/studio.css', '/src/css/studio-dialogs.css',
         '/vendor/mathlive/mathlive-static.css', '/vendor/mathlive/mathlive-fonts.css']) {
         const response = await fetch(f.url + path);
         assert.equal(response.status, 200, path);
@@ -71,7 +71,7 @@ test('visual editor modules and bundled math fonts have usable MIME types withou
     assert.equal((await head.arrayBuffer()).byteLength, 0);
     for (const path of ['/vendor/mathlive/', '/vendor/mathlive/manifest.json', '/vendor/mathlive/LICENSE.txt',
         '/vendor/mathlive/fonts/not-in-manifest.woff2', '/vendor/mathlive/private.js',
-        '/vendor/mathlive/fonts/..%2f..%2f..%2fserver.mjs', '/vendor/mathlive/fonts/%2e%2e%5cserver.mjs']) {
+        '/vendor/mathlive/fonts/..%2f..%2f..%2fserver%2fserver.mjs', '/vendor/mathlive/fonts/%2e%2e%5cserver%5cserver.mjs']) {
         assert.equal((await fetch(f.url + path)).status, 404, path);
     }
 });

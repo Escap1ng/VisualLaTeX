@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 
-const source = fs.readFileSync(new URL('../main.js', import.meta.url), 'utf8');
+const source = fs.readFileSync(new URL('../src/js/main.js', import.meta.url), 'utf8');
 
 // Minimal selection/DOM model: exercises the real event handlers without dependencies.
 function fixture() {

@@ -39,7 +39,7 @@ for (const tag of ['div', 'span', 'p', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'tabl
 }
 
 // 3) main.js 引用的 id 均存在
-const js = fs.readFileSync(path.join(root, 'main.js'), 'utf8');
+const js = fs.readFileSync(path.join(root, 'src/js/main.js'), 'utf8');
 const ids = [...js.matchAll(/getElementById\('([^']+)'\)/g)].map((m) => m[1]);
 for (const id of new Set(ids)) {
     if (!new RegExp('id="' + id + '"').test(html)) {

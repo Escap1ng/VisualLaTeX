@@ -7,7 +7,7 @@ import {createDocument, Element, Text} from './dom.mjs';
 // automatic HTML repair, scripts in user text or OS clipboard are simulated.
 const markup = fs.readFileSync(new URL('../../index.html', import.meta.url), 'utf8');
 const sources = ['main.js', 'project-model.js', 'project-archive.js', 'workspace.js']
-    .map(name => [name, fs.readFileSync(new URL('../../' + name, import.meta.url), 'utf8')]);
+    .map(name => [name, fs.readFileSync(new URL('../../src/js/' + name, import.meta.url), 'utf8')]);
 
 export async function fixture({denyStorage = false, denyDialogs = false, initialStorage = [], includeVisualReferences = false, includeVisualMath = false} = {}) {
     const root = new Element('fixture-root');
@@ -259,9 +259,9 @@ export async function fixture({denyStorage = false, denyDialogs = false, initial
         get() { const error = new Error('Access to localStorage is denied'); error.name = 'SecurityError'; throw error; },
     });
     const loaded = [...sources];
-    if (includeVisualMath) loaded.unshift(['visual-math.js', fs.readFileSync(new URL('../../visual-math.js', import.meta.url), 'utf8')]);
+    if (includeVisualMath) loaded.unshift(['visual-math.js', fs.readFileSync(new URL('../../src/js/visual-math.js', import.meta.url), 'utf8')]);
     if (includeVisualReferences) for (const name of ['visual-references.js', 'visual-references-ui.js']) {
-        loaded.splice(loaded.length - 1, 0, [name, fs.readFileSync(new URL('../../' + name, import.meta.url), 'utf8')]);
+        loaded.splice(loaded.length - 1, 0, [name, fs.readFileSync(new URL('../../src/js/' + name, import.meta.url), 'utf8')]);
     }
     for (const [filename, source] of loaded) vm.runInContext(source, context, {filename});
     await emit(document, 'DOMContentLoaded');

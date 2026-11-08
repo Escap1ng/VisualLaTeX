@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {access, chmod, mkdir, mkdtemp, readFile, readdir, rm, writeFile} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import {compileProject, discoverEngines, runProcess} from '../compiler.mjs';
+import {compileProject, discoverEngines, runProcess} from '../server/compiler.mjs';
 
 const pdf = Buffer.from('%PDF-1.7\nfixture\n%%EOF');
 const text = (path, text, encoding = 'utf-8') => ({path, kind: 'text', text, encoding});

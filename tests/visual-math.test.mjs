@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 
 const context = vm.createContext({});
-vm.runInContext(fs.readFileSync(new URL('../visual-math.js', import.meta.url), 'utf8'), context);
+vm.runInContext(fs.readFileSync(new URL('../src/js/visual-math.js', import.meta.url), 'utf8'), context);
 const {split, combine, unwrap, safe, mathValue} = context.VisualMath;
 const plain = value => JSON.parse(JSON.stringify(value));
 

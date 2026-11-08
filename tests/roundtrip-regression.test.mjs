@@ -6,7 +6,7 @@ import { createDocument, Element } from './helpers/dom.mjs';
 
 // These integration checks use real application functions with a minimal DOM
 // fixture, not a browser engine. Browser execution and TeX compilation are separate.
-const source = fs.readFileSync(new URL('../main.js', import.meta.url), 'utf8');
+const source = fs.readFileSync(new URL('../src/js/main.js', import.meta.url), 'utf8');
 function fixture(storage = new Map()) {
     const document = createDocument();
     const editor = new Element('div');

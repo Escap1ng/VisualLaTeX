@@ -8,7 +8,8 @@ if (-not $nodeCommand) { throw 'Node.js 22 or newer is required: https://nodejs.
 $nodeVersion = & $nodeCommand.Source --version
 $versionMatch = [regex]::Match([string]$nodeVersion, '^v(\d+)\.')
 if ($LASTEXITCODE -ne 0 -or -not $versionMatch.Success -or [int]$versionMatch.Groups[1].Value -lt 22) { throw 'Please install Node.js 22 or newer.' }
-$toolsRoot = Join-Path $PSScriptRoot '.tools'
+$projectRoot = Split-Path -Parent $PSScriptRoot
+$toolsRoot = Join-Path $projectRoot '.tools'
 $tectonicExe = Join-Path $toolsRoot 'tectonic\tectonic.exe'
 $ghostscriptExe = Join-Path $toolsRoot 'ghostscript\bin\gswin64c.exe'
 if (-not $env:VISUALLATEX_TECTONIC -and -not $env:VISUALLATEX_XELATEX -and (Test-Path -LiteralPath $tectonicExe -PathType Leaf)) { $env:VISUALLATEX_TECTONIC = $tectonicExe }
@@ -17,5 +18,5 @@ if (-not $env:TECTONIC_CACHE_DIR) {
     $env:TECTONIC_CACHE_DIR = Join-Path $toolsRoot 'cache'
     New-Item -ItemType Directory -Path $env:TECTONIC_CACHE_DIR -Force | Out-Null
 }
-& $nodeCommand.Source (Join-Path $PSScriptRoot 'server.mjs') --port $Port
+& $nodeCommand.Source (Join-Path $projectRoot 'server\server.mjs') --port $Port
 exit $LASTEXITCODE

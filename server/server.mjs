@@ -6,12 +6,12 @@ import {fileURLToPath} from 'node:url';
 import {compileProject, discoverEngines} from './compiler.mjs';
 import {getPdfPreviewInfo, renderPdfPreviewPage} from './pdf-preview.mjs';
 
-const ROOT = dirname(fileURLToPath(import.meta.url));
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const MAX_BODY_BYTES = 80 * 1024 * 1024;
 const MAX_PDF_BYTES = 80 * 1024 * 1024;
 // The checked-in manifest is the only source of public vendor paths. Do not
 // expose a vendor directory or derive a filesystem path from the request URL.
-const mathliveManifest = JSON.parse(await readFile(new URL('./vendor/mathlive/manifest.json', import.meta.url), 'utf8'));
+const mathliveManifest = JSON.parse(await readFile(new URL('../vendor/mathlive/manifest.json', import.meta.url), 'utf8'));
 const mathliveTypes = new Map([
     ['mathlive.min.js', 'text/javascript; charset=utf-8'],
     ['mathlive-static.css', 'text/css; charset=utf-8'],
@@ -24,11 +24,11 @@ const mathliveAssets = mathliveManifest.files.flatMap(({path}) => {
 const ASSETS = new Map([
     ['/', ['index.html', 'text/html; charset=utf-8']],
     ['/index.html', ['index.html', 'text/html; charset=utf-8']],
-    ...['main.js', 'workspace.js', 'project-model.js', 'project-archive.js', 'preview.js',
-        'visual-math.js', 'visual-references.js', 'visual-references-ui.js']
+    ...['src/js/main.js', 'src/js/workspace.js', 'src/js/project-model.js', 'src/js/project-archive.js', 'src/js/preview.js',
+        'src/js/visual-math.js', 'src/js/visual-references.js', 'src/js/visual-references-ui.js']
         .map(name => ['/' + name, [name, 'text/javascript; charset=utf-8']]),
-    ...['style.css', 'workspace.css', 'preview.css', 'visual-math.css', 'visual-references-ui.css',
-        'studio.css', 'studio-dialogs.css']
+    ...['src/css/style.css', 'src/css/workspace.css', 'src/css/preview.css', 'src/css/visual-math.css',
+        'src/css/visual-references-ui.css', 'src/css/studio.css', 'src/css/studio-dialogs.css']
         .map(name => ['/' + name, [name, 'text/css; charset=utf-8']]),
     ...mathliveAssets
 ]);

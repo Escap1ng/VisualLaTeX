@@ -5,7 +5,7 @@ import vm from 'node:vm';
 import { deflateRawSync } from 'node:zlib';
 
 const context = vm.createContext({TextEncoder, TextDecoder, Uint8Array, Uint32Array, DataView, Blob, DecompressionStream});
-vm.runInContext(fs.readFileSync(new URL('../project-archive.js', import.meta.url), 'utf8'), context);
+vm.runInContext(fs.readFileSync(new URL('../src/js/project-archive.js', import.meta.url), 'utf8'), context);
 const zip = context.ProjectArchive;
 const encode = text => new TextEncoder().encode(text);
 const decode = bytes => new TextDecoder().decode(bytes);
