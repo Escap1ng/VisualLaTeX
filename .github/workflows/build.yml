@@ -18,22 +18,28 @@ jobs:
           node-version: '22'
 
       - name: JS 语法检查
-        run: node --check main.js
+        shell: pwsh
+        run: |
+          foreach ($file in @('main.js', 'workspace.js', 'project-model.js', 'project-archive.js', 'preview.js', 'visual-math.js', 'visual-references.js', 'visual-references-ui.js', 'vendor/mathlive/mathlive.min.js', 'compiler.mjs', 'pdf-preview.mjs', 'server.mjs')) {
+            node --check $file
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
 
       - name: 冒烟检查
         run: node tests/smoke.mjs
 
-      - name: 导入、导出与编辑回归测试
+      - name: 编辑、编译服务与预览回归测试
         run: node --test
 
-      # 纯静态项目无运行时依赖，无需安装
+      # 工具链由用户自行安装，不将第三方引擎二进制打入源码包。
       - name: 打包项目为 zip
         shell: pwsh
         run: |
           $tag = $env:GITHUB_REF_NAME
           $name = "VisualLaTeX-$tag"
           New-Item -ItemType Directory -Path $name -Force | Out-Null
-          Copy-Item index.html, style.css, main.js, LICENSE, README.md, README.en.md -Destination $name
+          Copy-Item index.html, style.css, workspace.css, preview.css, visual-math.css, visual-references-ui.css, studio.css, studio-dialogs.css, main.js, workspace.js, project-model.js, project-archive.js, preview.js, visual-math.js, visual-references.js, visual-references-ui.js, compiler.mjs, pdf-preview.mjs, server.mjs, start.ps1, setup-windows.ps1, LICENSE, README.md, README.en.md -Destination $name
+          Copy-Item vendor -Destination $name -Recurse
           Copy-Item screenshots -Destination $name -Recurse
           Copy-Item tests -Destination $name -Recurse
           Compress-Archive -Path $name -DestinationPath "$name.zip"

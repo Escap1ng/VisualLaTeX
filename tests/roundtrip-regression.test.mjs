@@ -122,6 +122,109 @@ test('editing text retains adjacent escaped characters, commands and math delimi
     assert.equal(f.context.domToLatex(), tex.replace('Rate ', 'Updated rate '));
 });
 
+test('visual command and math decorations preserve original source and ancestor snapshots', () => {
+    const tex = documentWith('\r\n' + String.raw`\textbf{See \cite[see][p. 7]{first,second} and \ref{sec:intro}.} \label{sec:intro} \(x^2\) $$y$$` + '\r\n');
+    const f = fixture();
+    f.context.applyImportedTex(tex, 'decorated.tex');
+    const paragraph = f.editor.querySelector('p');
+    const snapshot = f.context.getTexNodeSnapshot(paragraph);
+    for (const command of f.editor.querySelectorAll('.tex-cmd')) {
+        command.innerHTML = '<span class="reference-icon">↗</span><b>Readable reference</b>';
+        command.setAttribute('title', 'Click to edit');
+        command.setAttribute('aria-label', 'Edit reference');
+        command.setAttribute('data-rendered', 'true');
+    }
+    for (const formula of [...f.editor.querySelectorAll('.formula-inline'), ...f.editor.querySelectorAll('.formula-block')]) {
+        formula.innerHTML = '<span class="math-renderer"><sup>2</sup><span>rendered expression</span></span>';
+        formula.setAttribute('title', 'Edit equation');
+        formula.setAttribute('aria-label', 'x squared');
+        formula.setAttribute('role', 'button');
+    }
+    assert.equal(f.context.getTexNodeSnapshot(paragraph), snapshot);
+    assert.equal(f.context.domToLatex(), tex);
+});
+
+test('changing a displayed reference invalidates its ancestors and changes only its command', () => {
+    const original = String.raw`\cite[see][p. 7]{first,second}`;
+    const replacement = String.raw`\cite[compare][p. 9]{third,fourth}`;
+    const tex = documentWith('\r\n' + String.raw`\textbf{See ` + original + String.raw` and \ref{sec:intro}.} \label{sec:intro} \(x^2\)` + '\r\n');
+    const f = fixture();
+    f.context.applyImportedTex(tex, 'references.tex');
+    const paragraph = f.editor.querySelector('p');
+    const snapshot = f.context.getTexNodeSnapshot(paragraph);
+    for (const node of f.editor.querySelectorAll('.tex-cmd')) node.textContent = 'Readable label';
+    const citation = f.editor.querySelectorAll('.tex-cmd').find(node => node.getAttribute('data-tex-source') === original);
+    citation.setAttribute('data-tex-source', replacement);
+    citation.innerHTML = '<b>Third and Fourth, p. 9</b>';
+    assert.notEqual(f.context.getTexNodeSnapshot(paragraph), snapshot);
+    assert.equal(f.context.domToLatex(), tex.replace(original, replacement));
+});
+
+test('rendered math and reference HTML never leaks into exports after neighboring text changes', () => {
+    const tex = documentWith('\n' + String.raw`Before \ref{sec:a}, \label{sec:a}, $x+1$ and \[y^2\].` + '\n');
+    const f = fixture();
+    f.context.applyImportedTex(tex, 'math.tex');
+    const paragraph = f.editor.querySelector('p');
+    for (const node of paragraph.childNodes.filter(node => node.nodeType === 1)) {
+        node.innerHTML = '<span>rendered HTML &amp; presentation</span>';
+        node.setAttribute('aria-label', 'Spoken formula');
+    }
+    paragraph.childNodes[0].textContent = 'After ';
+    assert.equal(f.context.domToLatex(), tex.replace('Before ', 'After '));
+});
+
+for (const [open, close] of [['$', '$'], ['$$', '$$'], ['\\(', '\\)'], ['\\[', '\\]']]) {
+    test('editing rendered math retains ' + open + ' delimiters and changes only the formula', () => {
+        const oldFormula = open + 'x + 1' + close;
+        const tex = documentWith('\r\nPrefix ' + oldFormula + String.raw` and \ref{sec:a}.` + '\r\n');
+        const f = fixture();
+        f.context.applyImportedTex(tex, 'formula.tex');
+        const formula = f.editor.querySelector('.formula-inline') || f.editor.querySelector('.formula-block');
+        formula.innerHTML = '<span class="math-renderer">x²</span>';
+        formula.setAttribute('data-formula', 'x^2 + 2');
+        assert.equal(f.context.domToLatex(), tex.replace(oldFormula, () => open + 'x^2 + 2' + close));
+    });
+}
+
+test('legacy command atoms without source metadata still export their TeX text', () => {
+    const f = fixture();
+    f.editor.innerHTML = '<p>See <span class="tex-cmd">\\ref{old:label}</span>.</p>';
+    assert.equal(f.context.convertNodeToLatex(f.editor.querySelector('.tex-cmd')), String.raw`\ref{old:label}`);
+});
+
+for (const environment of ['equation', 'equation*', 'align', 'align*', 'gather', 'gather*']) {
+    test(environment + ' renders as a source-preserving formula atom with editable content', () => {
+        const body = '\r\nx &= 1 ' + String.raw`\label{eq:first} \\` + '\r\ny &= 2 ' + String.raw`\tag{A}` + '\r\n';
+        const tex = documentWith('\r\nBefore.\r\n\\begin \t{' + environment + '}' + body + '\\end\r\n{' + environment + '}\r\nAfter.\r\n');
+        const f = fixture();
+        f.context.applyImportedTex(tex, 'equations.tex');
+        const formula = f.editor.querySelector('.formula-block');
+        assert.ok(formula);
+        assert.equal(formula.getAttribute('data-environment'), environment);
+        assert.equal(formula.getAttribute('data-delimiter'), 'environment');
+        assert.equal(formula.getAttribute('data-formula'), body);
+        formula.innerHTML = '<span class="math-renderer">Visual equation with label and tag</span>';
+        formula.setAttribute('aria-label', 'Equation');
+        assert.equal(f.context.domToLatex(), tex);
+        formula.setAttribute('data-formula', body.replace('x &= 1', 'x &= 3'));
+        assert.equal(f.context.domToLatex(), tex.replace('x &= 1', 'x &= 3'));
+        assert.equal(f.context.saveDraft(), true);
+        const reloaded = fixture(f.storage);
+        reloaded.context.loadDraft();
+        assert.deepEqual(reloaded.errors, []);
+        assert.equal(reloaded.context.domToLatex(), tex.replace('x &= 1', 'x &= 3'));
+    });
+}
+
+test('changing the equation environment invalidates source and uses matching environment boundaries', () => {
+    const tex = documentWith(String.raw`\begin{equation}x=1\label{eq:first}\end{equation}`);
+    const f = fixture();
+    f.context.applyImportedTex(tex, 'equation.tex');
+    const formula = f.editor.querySelector('.formula-block');
+    formula.setAttribute('data-environment', 'gather*');
+    assert.equal(f.context.domToLatex(), tex.replaceAll('{equation}', '{gather*}'));
+});
+
 test('empty document and metadata survive JSON draft save/reload', () => {
     const tex = '% prefix\r\n\\documentclass{report}\r\n\\begin {document}\\end {document}\r\n% tail\r\n';
     const f = fixture();
@@ -148,6 +251,26 @@ test('nonempty draft restoration preserves source snapshots and command semantic
     assert.deepEqual(reloaded.errors, []);
     assert.equal(reloaded.context.domToLatex(), tex);
 });
+
+for (const edited of [false, true]) {
+    test('legacy presentation snapshots migrate without losing ' + (edited ? 'unsaved source changes' : 'original source formatting'), () => {
+        const tex = documentWith('\r\n' + String.raw`\section {See \ref{sec:a}}` + '\r\n' +
+            String.raw`Original \textbf {math \(x + 1\)}.` + '\r\n');
+        const f = fixture();
+        f.context.applyImportedTex(tex, 'old-draft.tex');
+        for (const node of f.editor.querySelectorAll('[data-tex-snapshot]')) {
+            node.setAttribute('data-tex-snapshot', f.context.getTexNodeSnapshot(node, true));
+        }
+        if (edited) f.editor.querySelector('p').childNodes[0].textContent = 'Updated ';
+        f.context.saveDraft();
+        const reloaded = fixture(f.storage);
+        reloaded.context.loadDraft();
+        assert.deepEqual(reloaded.errors, []);
+        assert.equal(reloaded.context.domToLatex(), edited ? tex.replace('Original ', 'Updated ') : tex);
+        const heading = reloaded.editor.querySelector('h1');
+        assert.equal(heading.getAttribute('data-tex-snapshot'), reloaded.context.getTexNodeSnapshot(heading));
+    });
+}
 
 test('legacy drafts strip event handlers, active elements and unsafe image protocols', () => {
     const f = fixture(new Map([['visuellatex_draft',

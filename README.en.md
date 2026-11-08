@@ -1,117 +1,126 @@
-<div align="center">
+# VisualLaTeX Studio
 
-# VisualLaTeX
+**Import a document, edit it visually, then export—with multiple files, PostScript and local PDF compilation.**
 
-**Import · Tweak · Export — an offline LaTeX light editor that preserves original source**
+The workspace centers the manuscript, with compact editing and compile controls, consistent icons, paper typography, and focused dialogs. Formula confirmation stays visible in the dialog footer.
 
-[![Version](https://img.shields.io/badge/Version-v2.0.3-6f42c1)](https://github.com/Escap1ng/VisualLaTeX/releases)
-[![License](https://img.shields.io/badge/License-Apache_2.0-0366d6)](./LICENSE)
-[![CI](https://github.com/Escap1ng/VisualLaTeX/actions/workflows/ci.yml/badge.svg)](https://github.com/Escap1ng/VisualLaTeX/actions/workflows/ci.yml)
-[![Online Demo](https://img.shields.io/badge/Online_Demo-GitHub_Pages-00b4d8)](https://Escap1ng.github.io/VisualLaTeX/)
-[![Dependencies](https://img.shields.io/badge/Dependencies-none-959da5)](https://github.com/Escap1ng/VisualLaTeX/actions/workflows/build.yml)
+![VisualLaTeX Studio](screenshots/studio-workspace.jpg)
 
-[中文](README.md) · **English**
+VisualLaTeX Studio continues VisualLaTeX's purpose of visually modifying existing LaTeX documents, adding full source access, multiple files, references, bibliography entries, ZIP projects and real compilation. It bundles MathLive 0.111.1 (MIT) and its fonts for formula editing. Offline editing needs no npm installation or build step. Compilation uses Node.js 22+ and a local typesetting toolchain.
 
-</div>
+**Complete LaTeX documents open in Visual editing by default.** Edit text and headings directly and use the formatting toolbar. Click a typeset formula to edit fractions, superscripts and subscripts in a graphical math field. References and labels appear as readable items that open an editor when clicked, without switching to source. Untouched source stays intact, and the current session remembers the selected editing mode for each file.
 
----
+Source editing remains available for preambles, custom macros and complex structures. Bibliography files, PostScript, TeX fragments and incomplete documents use source editing without forced visual conversion. PostScript supports source editing and rendering; arbitrary PS graphics cannot yet be modified as visual objects.
 
-<div align="center">
+## Start
 
-![VisualLaTeX editor screenshot](screenshots/editor.png)
+The sample project contains `main.tex`, `references.bib` and `drawing.ps`. Opening `index.html` directly supports editing; use the local service for PDF preview and export.
 
-</div>
+### Windows
 
-## Why This Exists
+Install [Node.js 22 or newer](https://nodejs.org/en/download), unpack this project and run PowerShell in its directory:
 
-It's the night before the deadline, and your advisor only asked you to "change a few sentences and reword a title" — yet the moment you open the `.tex` file, a wall of backslashes and braces stares back at you. Overleaf is great, but it is designed for people who write code. You just want a small, safe change.
+```powershell
+.\setup-windows.ps1
+.\start.ps1
+```
 
-**VisualLaTeX was built for exactly that:**
+If PowerShell blocks scripts under its default policy, use `powershell -NoProfile -ExecutionPolicy Bypass -File .\setup-windows.ps1` for that invocation, and likewise for `start.ps1`. No system policy change is required.
 
-| Scenario | Traditional Code Editor | VisualLaTeX |
-|:---|:---|:---|
-| Small-edit efficiency | Manually locate structures in source | WYSIWYG, click and edit |
-| Risk of breakage | Easy to corrupt commands & environments | Complex structures locked verbatim |
-| Learning curve | Requires LaTeX fluency | If you can use Word, you're set |
+Setup downloads pinned official Tectonic 0.17.0, Ghostscript 10.08.0 and extraction tools, verifies their published SHA-256 digests, and unpacks them under `.tools`. It never runs the installers, changes the registry, or overwrites project files. Existing tools are retained on subsequent runs; failed downloads and staging files remain available for inspection. Third-party engine binaries are not distributed in this source archive; their licenses remain in their download packages.
 
-## Core Workflow
+Open the address printed by the terminal, normally `http://127.0.0.1:4173`. Keep the terminal running and press Ctrl+C to stop. Use `.\start.ps1 -Port 4174` to choose another port.
 
-**Import `.tex` → light visual edits → export `.tex`**
+### macOS, Linux or an existing toolchain
 
-Unedited source blocks retain their original comments, whitespace, and line endings. Edited regions are regenerated as LaTeX. Structures that cannot be safely converted stay in editable source blocks, fully offline.
+Install [Tectonic](https://tectonic-typesetting.github.io/book/latest/installation/index.html) or XeLaTeX and [Ghostscript](https://ghostscript.com/releases/gsdnld.html), make their executables available on PATH, then run:
+
+```bash
+node server.mjs
+```
+
+Executable paths can also be supplied using `VISUALLATEX_TECTONIC`, `VISUALLATEX_XELATEX`, and `VISUALLATEX_GHOSTSCRIPT`. XeLaTeX bibliography tools accept `VISUALLATEX_BIBTEX` and `VISUALLATEX_BIBER`. Set XeLaTeX explicitly to choose an existing TeX distribution; do not configure both LaTeX engines at once.
+
+Tectonic downloads missing TeX support files on first use and caches them for later compilation. Source is compiled locally and is not uploaded to a third-party service. The Windows launcher uses `.tools/cache`; `TECTONIC_CACHE_DIR` overrides this location. Existing TeX distributions manage their own packages and fonts.
+
+### Editing and PDF output
+
+- Add individual files, open a project folder, or import a ZIP project.
+- Complete LaTeX documents open in Visual editing: modify text and headings directly, use the formatting toolbar, or click formulas, references and labels to edit them.
+- Switch to Source editing for preambles, custom macros and complex structures, then return to visual editing. Fragments, BibTeX, PostScript and EPS text remain directly editable source.
+- Download one file or export the entire project as ZIP, including binary resources and changes in inactive files.
+- Select the complete LaTeX main document or a PS/EPS file, then compile/render with the button or Ctrl/Cmd+Enter.
+- Inspect the generated PDF and export it. The PDF pane displays the result; modify content in the editor. Running tasks can be cancelled; errors retain engine logs for diagnosis.
+
+Source changes mark an older PDF as stale. Export recompiles changed content before downloading, while failed compilation keeps the previous preview visibly marked and leaves the source editable. With Ghostscript installed, pages are displayed as images using Previous/Next controls, without requiring a browser PDF plugin. Without Ghostscript, the UI explains the limitation and falls back to native PDF display; the complete PDF remains exportable.
+
+Image preview supports the first 100 pages on a fixed 1200×1600 canvas with each complete page fitted proportionally. This does not change the exported PDF's page dimensions, vector content or page count. Images are generated on demand with a 20-second limit and can be retried after failure. Use the exported PDF to select or copy text.
+
+Direct `file://` pages and GitHub Pages remain editing-only. Browser drafts are isolated by origin: export a ZIP from the old offline page before switching to the local service, then import it there.
+
+Opening a folder or project replaces the current workspace after confirmation. Adding individual files preserves existing files and assigns new names to duplicates. Renaming a path does not rewrite source references automatically.
 
 ## Features
 
-| Feature | Details |
-|:---|:---|
-| One-click import | Open a local `.tex`; sections, paragraphs, lists, formulas, and images become visual elements |
-| Split-pane view | Visual editor on the left, live LaTeX source preview on the right |
-| Basic formatting | Three heading levels, bold, italic, center, ordered/unordered lists |
-| Formula input | 30+ symbols; `$...$`, `$$...$$`, `\(...\)`, and `\[...\]`; double-click visual formulas to edit |
-| Verbatim blocks | Tables, bibliographies, code listings shown as-is, editable, never lost on export |
-| Command protection | `\cite`, `\ref`, and other reference commands preserved verbatim |
-| Image insertion | Enter a path to generate the `figure` float environment |
-| One-click export | Copy source or download `.tex`, reusing the imported file name |
-| Auto-save | Drafts cached together with the preamble; content survives page refresh |
+| Feature | Support |
+| --- | --- |
+| Visual editing | Default for complete LaTeX documents; edit text, headings, formatting, lists, formulas, references and labels |
+| Graphical math | Typeset formulas with click-to-edit fractions and scripts; inline/display math and equation, align and gather environments, including starred variants |
+| Source files | TeX, LaTeX, STY, CLS, BIB, PS, EPS and UTF-8 text with custom extensions |
+| Project management | Create, rename, delete, select main file and preserve relative paths |
+| References | Readable, clickable cite/ref/label items; select project labels and BibTeX entries, edit keys and optional notes, and add bibliography entries |
+| Find and replace | Current-file search, wrap-around, replace one/all and case sensitivity |
+| History | Independent per-file undo/redo for source and visual changes |
+| PostScript | PS/text EPS source, page/procedure outline, templates, UTF-8 and Latin-1; no arbitrary PS graphics object editing |
+| Resources | Preserve original binary bytes, including binary EPS |
+| Archives | Read stored/deflated ZIP and export standard ZIP without packages |
+| Drafts | Atomic local project snapshots and legacy single-file migration |
+| LaTeX compilation | Tectonic or XeLaTeX with project files, resources, references and bibliography processing |
+| PostScript rendering | Ghostscript converts PS/EPS to PDF; EPS uses BoundingBox cropping |
+| PDF output | Target selection, preview, cancellation, logs, stale-result tracking and current-source export |
 
-## Quick Start
+Reference displays use section titles, label keys and BibTeX metadata such as authors, titles and years to identify targets. They do not claim to show compiled citation numbers or page numbers. The compiled PDF determines final numbering, bibliography style and typesetting.
 
-**Zero install · zero dependencies · zero build** — clone and double-click to run offline:
+The formula dialog provides graphical math input and fields for labels and explicit tags. Formula delimiters, environment names and unchanged source are preserved; labels and tags in multiline formulas remain associated with their rows. Use the dialog's advanced input or Source editing for custom macros and complex expressions unsupported by the renderer. Other unsupported visual structures remain editable raw TeX. New `main.tex` files have a document template; other TeX files start empty for use as fragments.
 
-```bash
-git clone https://github.com/Escap1ng/VisualLaTeX.git
-```
+Shortcuts: Ctrl/Cmd+S saves locally, Ctrl/Cmd+F opens find/replace, Ctrl/Cmd+Z undoes, Ctrl/Cmd+Shift+Z or Ctrl+Y redoes, Ctrl/Cmd+Enter compiles/renders, and Tab inserts two spaces. The encoding button explicitly switches UTF-8/Latin-1; unencodable characters are rejected rather than replaced.
 
-Then double-click `index.html`. That's it.
+## Limits
 
-You can also use the [online demo](https://Escap1ng.github.io/VisualLaTeX/) (auto-deployed by GitHub Actions).
+Projects allow 500 files and 50 MB of expanded content; ZIP input allows 100 MB. Encrypted, multi-disk and ZIP64 archives are unsupported. Browser storage quotas may be smaller; export ZIP backups for larger projects. Undo history is session-local.
 
-## Project Structure
+Project name, main file and active file are stored in the ZIP comment without reserving or replacing any user filename. Third-party repacking may remove these settings; project source and resources can still be imported.
 
-```
-VisualLaTeX/
-├── index.html    # Main page (layout, toolbar)
-├── style.css     # Global styles
-├── main.js       # Editor core, .tex parsing, DOM↔LaTeX conversion
-├── tests/        # Zero-dependency smoke and import/export/editing regression checks
-├── .github/      # GitHub Actions workflows (CI / release / Pages)
-├── README.md     # Docs (Chinese)
-└── README.en.md  # Docs (English)
-```
+Compilation is explicit and has a default 180-second timeout; initial support-file downloads may take longer. Tectonic performs TeX/BibTeX passes automatically. BibLaTeX/Biber projects should use XeLaTeX with Biber installed. CJK and custom fonts must be available to the toolchain. Packages requiring shell escape, such as some minted workflows, are unsupported. Full typesetting and diagnostics come from the engine; the visual editor is not a complete TeX parser.
 
-## Continuous Integration
+Font validation limitation: with Tectonic 0.17.0 and the default ctex/Fandol fonts, the tested Chinese PDF looked correct but copied/extracted text had incorrect character mappings. On Windows with the corresponding system fonts installed, explicitly using `\usepackage[UTF8,fontset=windows]{ctex}` restored text copying in the tested sample. The application never changes project font settings automatically; other platforms and font combinations need separate verification.
 
-Automation is powered by GitHub Actions:
+The service binds only to loopback and validates Host, Origin and a session token. Temporary project directories are removed after jobs finish. Tectonic uses `--untrusted`, XeLaTeX disables shell escape, and Ghostscript uses `SAFER`. These options **are not an operating-system sandbox**: compile trusted local projects, and do not expose this service as a public compilation server.
 
-| Workflow | Trigger | Purpose |
-|:---|:---|:---|
-| CI | push or PR to `main` or `dev` | Syntax, asset integrity, and import/export/editing regression tests |
-| Build & Release | push `v*` version tag | Package and release only after checks pass on that commit |
-| Deploy to GitHub Pages | push to `main` | Deploy the [online demo](https://Escap1ng.github.io/VisualLaTeX/) only after checks pass on that commit |
+## Development
 
-Run locally with Node.js 22+; no npm packages are needed:
+Node.js 22+, no npm installation:
 
 ```bash
 node --check main.js
+node --check workspace.js
+node --check visual-math.js
+node --check visual-references.js
+node --check visual-references-ui.js
+node --check preview.js
+node --check compiler.mjs
+node --check server.mjs
 node tests/smoke.mjs
 node --test
 ```
 
-Regression checks cover HTML injection, source round trips, local edits, formulas, images, escaping, and draft recovery. DOM checks use a minimal model; they do not replace real browser interaction or TeX compilation tests.
+Tests exercise actual functions and UI event handlers, compiler process orchestration, loopback service boundaries, cancellation and stale results. New regressions cover display-only formula/reference changes preserving source, edits confined to the selected reference command, math delimiters, environments and labels, legacy draft snapshot migration, visual reference interactions, and the local server's script/font allowlist. Regular tests use simulated engines and do not need the toolchain. The minimal DOM model does not verify browser layout or actual TeX/PS typesetting. CI checks `main`/`dev`; publishing and deployment wait for checks. GitHub Pages serves only the static editor.
 
-## Recommended Workflow
+The pinned MathLive scripts, styles, fonts and license are in `vendor/mathlive/`. Its [manifest.json](vendor/mathlive/manifest.json) records the version, download source, package integrity and each file's SHA-256. These assets load locally without a CDN.
 
-Import the `.tex` you want to touch up → make visual text and structure adjustments → export and download → drop it back into your project and compile.
+See the [browser acceptance checklist](tests/browser-acceptance.md) for manual end-to-end validation. Actual engine validation in this iteration used Tectonic and Ghostscript; the XeLaTeX path has not yet been verified against a real distribution.
 
-<details>
-<summary><b>Known Limitations</b></summary>
-
-1. Built on `contenteditable`; complex editing behavior still needs validation in individual browsers
-2. No visual table editing (tables are edited as source inside verbatim blocks)
-3. Complex/nested environments, multiple images, custom list labels, and `equation` environments use editable source blocks; TeX macros are not expanded
-4. This is a light editing tool; for large-scale rewrites, use a code editor
-
-</details>
+`workspace.js` coordinates editing, `project-model.js` owns canonical source/history/indexes, and `project-archive.js` handles ZIP. `visual-math.js`/`.css` adapt MathLive for formula rendering and editing; `visual-references*.js`/`.css` provide reference semantics, readable displays and editing dialogs. `preview.js` manages PDF state and export; `compiler.mjs` and `server.mjs` run the local compilation service, while `pdf-preview.mjs` renders bounded page images. `setup-windows.ps1` and `start.ps1` prepare portable tools and start the service. The original `main.js` remains the visual LaTeX conversion core.
 
 <details>
 <summary><b>Version History</b></summary>
@@ -125,18 +134,6 @@ Import the `.tex` you want to touch up → make visual text and structure adjust
 
 </details>
 
-## Contributing
-
-Issue reports and Pull Requests are welcome via the [Issue tracker](https://github.com/Escap1ng/VisualLaTeX/issues).
-
 ## License
 
-[Apache License 2.0](./LICENSE) © Escap1ng
-
----
-
-<div align="center">
-
-**If this tool saved you an hour, consider leaving a Star**
-
-</div>
+Project code uses [Apache-2.0](LICENSE), based on the original project by Escap1ng. Bundled MathLive 0.111.1 uses the [MIT license](vendor/mathlive/LICENSE.txt); its notice is included in the source archive.

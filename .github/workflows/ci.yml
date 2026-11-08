@@ -15,13 +15,15 @@ jobs:
         with:
           node-version: '22'
 
-      # JS 语法检查（等效于 compileall）
       - name: JS 语法检查
-        run: node --check main.js
+        run: |
+          for file in main.js workspace.js project-model.js project-archive.js preview.js visual-math.js visual-references.js visual-references-ui.js vendor/mathlive/mathlive.min.js compiler.mjs pdf-preview.mjs server.mjs; do
+            node --check "$file"
+          done
 
       # 无头冒烟检查：资源完整、标签配对、DOM id 一致性
       - name: 冒烟检查
         run: node tests/smoke.mjs
 
-      - name: 导入、导出与编辑回归测试
+      - name: 编辑、编译服务与预览回归测试
         run: node --test

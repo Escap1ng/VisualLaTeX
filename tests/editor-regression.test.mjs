@@ -45,7 +45,7 @@ function fixture() {
             return null;
         }
         addEventListener(type, handler) { this.listeners[type] = handler; }
-        focus() {}
+        focus() { document.activeElement = this; }
     }
     function textNode(value) {
         return { nodeType: 3, textContent: String(value), get parentElement() { return this.parentNode; } };
@@ -81,13 +81,15 @@ function fixture() {
     const prompts = [];
     const calls = { prompts: 0, saves: 0, previews: 0, statuses: [] };
     const document = {
-        addEventListener() {},
+        listeners: {},
+        addEventListener(type, handler) { this.listeners[type] = handler; },
         getElementById: id => ids[id],
         createElement: tag => new Element(tag),
         createTextNode: textNode,
         createRange: () => new Range(ids.editorArea),
         querySelector: selector => selector.includes(':checked') ? radios.find(r => r.checked)
             : radios.find(r => selector.includes(`value="${r.value}"`)),
+        querySelectorAll: selector => selector === 'input[name="formulaMode"]' ? radios : [],
     };
     const context = vm.createContext({ document, Node: { ELEMENT_NODE: 1, TEXT_NODE: 3 },
         window: { getSelection: () => selection }, console,
@@ -104,7 +106,17 @@ function fixture() {
         ids.editorArea.appendChild(node);
         return node;
     }
-    return { context, ids, selection, prompts, calls, Element, Range, formula, radios };
+    return { context, ids, selection, prompts, calls, Element, Range, formula, radios, document };
+}
+
+function modalKey(f, key, properties = {}) {
+    const event = {type: 'keydown', key, target: f.ids.formulaInput, defaultPrevented: false, propagationStopped: false,
+        preventDefault() { this.defaultPrevented = true; }, stopPropagation() { this.propagationStopped = true; }, ...properties};
+    // Match addEventListener's currentTarget/this binding and event bubbling.
+    // Parent listeners are deliberately installed by each shortcut regression.
+    f.ids.formulaModal.listeners.keydown.call(f.ids.formulaModal, event);
+    if (!event.propagationStopped) f.document.listeners.keydown?.call(f.document, event);
+    return event;
 }
 
 test('image insertion without an existing selection appends to the editor', () => {
@@ -127,6 +139,26 @@ test('an external selection is never deleted or used for insertion', () => {
     assert.equal(externalRange.deleted, false);
     assert.equal(outside.childNodes.length, 0);
     assert.equal(f.ids.editorArea.childNodes[0].tagName, 'IMG');
+});
+
+test('image parameters from an asynchronous dialog restore the saved editor selection without native prompts', () => {
+    const f = fixture();
+    const original = new f.Element('p');
+    original.textContent = 'Original text';
+    f.ids.editorArea.appendChild(original);
+    f.selection.addRange(new f.Range(f.ids.editorArea, 0));
+    f.context.saveEditorSelection();
+    f.selection.removeAllRanges();
+    const outside = new f.Element('input');
+    const externalRange = new f.Range(outside);
+    f.selection.addRange(externalRange);
+    f.context.insertImage({imagePath: 'figure.png', caption: '<b>Caption</b>', label: 'fig:async'});
+    assert.equal(f.calls.prompts, 0);
+    assert.equal(f.calls.saves, 1);
+    assert.equal(externalRange.deleted, false);
+    assert.equal(f.ids.editorArea.childNodes[0].tagName, 'IMG');
+    assert.equal(f.ids.editorArea.childNodes[0].getAttribute('data-caption'), '<b>Caption</b>');
+    assert.ok(f.ids.editorArea.childNodes.includes(original));
 });
 
 test('cancelling the image path immediately stops the interaction', () => {
@@ -161,6 +193,232 @@ test('double-clicking an existing formula loads its value and mode', () => {
     assert.equal(f.ids.formulaInput.value, 'x^2');
     assert.equal(f.radios.find(r => r.checked).value, 'block');
     assert.equal(f.ids.btnInsertFormula.textContent, '更新公式');
+});
+
+test('a single click opens the formula editor from rendered children or their text', () => {
+    for (const textTarget of [false, true]) {
+        const f = fixture();
+        const formula = f.formula(String.raw`\frac{x}{y}`, 'block');
+        const rendered = new f.Element('span');
+        rendered.textContent = 'rendered fraction';
+        formula.appendChild(rendered);
+        f.context.initFormulaModal();
+        let prevented = false;
+        f.ids.editorArea.listeners.click({type: 'click', target: textTarget ? rendered.childNodes[0] : rendered,
+            preventDefault() { prevented = true; }});
+        assert.equal(prevented, true);
+        assert.equal(f.ids.formulaModal.classList.contains('show'), true);
+        assert.equal(f.ids.formulaInput.value, String.raw`\frac{x}{y}`);
+        assert.equal(f.radios.find(r => r.checked).value, 'block');
+        assert.equal(f.ids.btnInsertFormula.textContent, '更新公式');
+        assert.equal(f.calls.saves, 0);
+    }
+});
+
+test('Enter and Space open a focused formula while ordinary typing and outside formulas do not', () => {
+    for (const key of ['Enter', ' ', 'ArrowRight', 'a']) {
+        const f = fixture();
+        const formula = f.formula('x + 1');
+        f.context.initFormulaModal();
+        let prevented = false;
+        f.ids.editorArea.listeners.keydown({type: 'keydown', key, target: formula,
+            preventDefault() { prevented = true; }});
+        const activated = key === 'Enter' || key === ' ';
+        assert.equal(prevented, activated);
+        assert.equal(f.ids.formulaModal.classList.contains('show'), activated);
+        assert.equal(f.calls.saves, 0);
+    }
+    const f = fixture();
+    f.context.initFormulaModal();
+    const outside = new f.Element('span'); outside.className = 'formula-inline';
+    let prevented = false;
+    f.ids.editorArea.listeners.click({type: 'click', target: outside, preventDefault() { prevented = true; }});
+    assert.equal(prevented, false);
+    assert.equal(f.ids.formulaModal.classList.contains('show'), false);
+});
+
+for (const environment of ['equation', 'equation*', 'align', 'align*', 'gather', 'gather*']) {
+    test('editing ' + environment + ' through formula events preserves exact environment boundaries', () => {
+        const f = fixture();
+        const original = '\r\nx &= 1\\\\\r\ny &= 2\\label{eq:result}\r\n';
+        const updated = original.replace('x &= 1', 'x &= 3');
+        const opening = '\\begin \t{' + environment + '}';
+        const closing = '\\end\r\n{' + environment + '}';
+        const formula = f.formula(original, 'block');
+        formula.setAttribute('data-delimiter', 'environment');
+        formula.setAttribute('data-environment', environment);
+        formula.setAttribute('data-tex-env-open', opening);
+        formula.setAttribute('data-tex-env-close', closing);
+        formula.setAttribute('data-tex-source', opening + original + closing);
+        formula.setAttribute('data-tex-snapshot', 'old snapshot');
+        f.context.initFormulaModal();
+        f.ids.editorArea.listeners.click({type: 'click', target: formula, preventDefault() {}});
+        assert.equal(f.radios.find(r => r.checked).value, 'block');
+        assert.ok(f.radios.every(r => r.disabled));
+        f.ids.formulaInput.value = updated;
+        f.ids.btnInsertFormula.listeners.click({type: 'click'});
+        assert.equal(f.ids.editorArea.childNodes.length, 1);
+        const replacement = f.ids.editorArea.childNodes[0];
+        assert.notEqual(replacement, formula);
+        assert.equal(replacement.getAttribute('data-formula'), updated);
+        assert.equal(replacement.getAttribute('data-delimiter'), 'environment');
+        assert.equal(replacement.getAttribute('data-environment'), environment);
+        assert.equal(replacement.getAttribute('data-tex-env-open'), opening);
+        assert.equal(replacement.getAttribute('data-tex-env-close'), closing);
+        assert.equal(replacement.getAttribute('data-tex-source'), null);
+        assert.equal(replacement.getAttribute('data-tex-snapshot'), null);
+        assert.equal(f.context.convertNodeToLatex(replacement), opening + updated + closing);
+        assert.equal(f.ids.formulaModal.classList.contains('show'), false);
+        assert.equal(f.calls.saves, 1);
+        assert.equal(f.calls.previews, 1);
+        f.context.openFormulaModal('inline');
+        assert.ok(f.radios.every(r => !r.disabled));
+    });
+}
+
+test('cancelling environment edits with close or Escape preserves the original atom and source', () => {
+    for (const action of ['close', 'escape']) {
+        const f = fixture();
+        const formula = f.formula('\nx = 1\\label{eq:original}\n', 'block');
+        const source = '\\begin{equation}' + formula.getAttribute('data-formula') + '\\end{equation}';
+        formula.setAttribute('data-delimiter', 'environment');
+        formula.setAttribute('data-environment', 'equation');
+        formula.setAttribute('data-tex-env-open', '\\begin{equation}');
+        formula.setAttribute('data-tex-env-close', '\\end{equation}');
+        formula.setAttribute('data-tex-source', source);
+        f.context.initFormulaModal();
+        f.ids.editorArea.listeners.keydown({type: 'keydown', key: 'Enter', target: formula, preventDefault() {}});
+        f.ids.formulaInput.value = 'discarded';
+        if (action === 'close') f.ids.formulaModalClose.listeners.click({type: 'click'});
+        else f.document.listeners.keydown({type: 'keydown', key: 'Escape'});
+        assert.equal(f.ids.editorArea.childNodes[0], formula);
+        assert.equal(formula.getAttribute('data-tex-source'), source);
+        assert.equal(formula.getAttribute('data-environment'), 'equation');
+        assert.equal(f.ids.formulaModal.classList.contains('show'), false);
+        assert.equal(f.calls.saves, 0);
+    }
+});
+
+test('formula confirmation shortcuts edit once without reaching workspace compile handlers', () => {
+    for (const modifier of ['ctrlKey', 'metaKey']) {
+        const f = fixture();
+        f.context.initFormulaModal();
+        f.context.openFormulaModal('inline');
+        f.ids.formulaInput.value = 'x + 1';
+        const event = {key: 'Enter', [modifier]: true, defaultPrevented: false, propagationStopped: false,
+            preventDefault() { this.defaultPrevented = true; },
+            stopPropagation() { this.propagationStopped = true; }};
+        f.ids.formulaInput.listeners.keydown(event);
+        let compileCalls = 0;
+        if (!event.propagationStopped) compileCalls++;
+        assert.equal(event.defaultPrevented, true);
+        assert.equal(compileCalls, 0);
+        assert.equal(f.ids.editorArea.childNodes.filter(node => node.getAttribute?.('data-formula') === 'x + 1').length, 1);
+        assert.equal(f.calls.saves, 1);
+        assert.equal(f.ids.formulaModal.classList.contains('show'), false);
+    }
+});
+
+test('modal Ctrl+S and Cmd+S commit the formula exactly once before document persistence', () => {
+    for (const modifier of ['ctrlKey', 'metaKey']) {
+        const f = fixture();
+        const original = f.formula('x');
+        f.context.initFormulaModal();
+        f.context.openFormulaModal('inline', original);
+        f.ids.formulaInput.value = 'x + 1';
+        let documentSaves = 0;
+        f.document.listeners.keydown = event => {
+            if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') documentSaves++;
+        };
+        const event = modalKey(f, modifier === 'ctrlKey' ? 's' : 'S', {[modifier]: true});
+        assert.equal(event.defaultPrevented, true);
+        assert.equal(event.propagationStopped, true);
+        assert.equal(documentSaves, 0);
+        assert.equal(f.calls.saves, 1);
+        assert.equal(f.calls.previews, 1);
+        assert.equal(f.ids.editorArea.childNodes.length, 1);
+        assert.equal(f.ids.editorArea.childNodes[0].getAttribute('data-formula'), 'x + 1');
+        assert.equal(f.ids.formulaModal.classList.contains('show'), false);
+    }
+});
+
+test('modal undo shortcuts stay inside the formula field without preventing its native undo', () => {
+    for (const modifier of ['ctrlKey', 'metaKey']) {
+        const f = fixture();
+        const original = f.formula('x');
+        f.context.initFormulaModal();
+        f.context.openFormulaModal('inline', original);
+        f.ids.formulaInput.value = 'draft';
+        let documentUndos = 0;
+        f.document.listeners.keydown = () => documentUndos++;
+        const event = modalKey(f, 'z', {[modifier]: true});
+        assert.equal(event.propagationStopped, true);
+        assert.equal(event.defaultPrevented, false);
+        assert.equal(documentUndos, 0);
+        assert.equal(f.ids.formulaModal.classList.contains('show'), true);
+        assert.equal(f.ids.editorArea.childNodes[0], original);
+        assert.equal(f.calls.saves, 0);
+    }
+});
+
+test('modal Escape cancels the draft without propagating to document handlers', () => {
+    const f = fixture();
+    const original = f.formula('x');
+    f.context.initFormulaModal();
+    f.context.openFormulaModal('inline', original);
+    f.ids.formulaInput.value = 'discarded';
+    let documentKeys = 0;
+    f.document.listeners.keydown = () => documentKeys++;
+    const event = modalKey(f, 'Escape');
+    assert.equal(event.defaultPrevented, true);
+    assert.equal(event.propagationStopped, true);
+    assert.equal(documentKeys, 0);
+    assert.equal(f.ids.formulaModal.classList.contains('show'), false);
+    assert.equal(f.ids.editorArea.childNodes[0], original);
+    assert.equal(original.getAttribute('data-formula'), 'x');
+    assert.equal(f.calls.saves, 0);
+    assert.equal(f.document.activeElement, f.ids.editorArea);
+});
+
+test('modal Tab loops only at visible enabled control boundaries', () => {
+    const f = fixture();
+    f.context.initFormulaModal();
+    f.context.openFormulaModal('inline');
+    const disabled = new f.Element('button'); disabled.disabled = true;
+    const hidden = new f.Element('textarea');
+    const fields = [disabled, f.ids.formulaModalClose, f.ids.formulaInput, f.ids.btnInsertFormula, hidden];
+    for (const field of fields) field.getClientRects = () => [{}];
+    hidden.getClientRects = () => [];
+    f.ids.formulaModal.querySelectorAll = selector => {
+        assert.equal(selector, 'button,input,textarea,summary,math-field');
+        return fields;
+    };
+    let documentKeys = 0;
+    f.document.listeners.keydown = () => documentKeys++;
+    f.ids.btnInsertFormula.focus();
+    assert.equal(modalKey(f, 'Tab').defaultPrevented, true);
+    assert.equal(f.document.activeElement, f.ids.formulaModalClose);
+    assert.equal(modalKey(f, 'Tab', {shiftKey: true}).defaultPrevented, true);
+    assert.equal(f.document.activeElement, f.ids.btnInsertFormula);
+    f.ids.formulaInput.focus();
+    assert.equal(modalKey(f, 'Tab').defaultPrevented, false);
+    assert.equal(f.document.activeElement, f.ids.formulaInput);
+    assert.equal(documentKeys, 0);
+    assert.equal(f.calls.saves, 0);
+});
+
+test('an empty formula confirmation remains in the modal without starting compilation', () => {
+    const f = fixture();
+    f.context.initFormulaModal();
+    f.context.openFormulaModal('inline');
+    let propagationStopped = false;
+    f.ids.formulaInput.listeners.keydown({key: 'Enter', ctrlKey: true,
+        preventDefault() {}, stopPropagation() { propagationStopped = true; }});
+    assert.equal(propagationStopped, true);
+    assert.equal(f.ids.formulaModal.classList.contains('show'), true);
+    assert.equal(f.ids.editorArea.childNodes.length, 0);
+    assert.equal(f.calls.saves, 0);
+    assert.equal(f.calls.statuses.at(-1), '请输入公式内容');
 });
 
 test('editing an existing formula replaces it once and invalidates old source metadata', () => {

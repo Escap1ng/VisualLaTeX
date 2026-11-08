@@ -1,0 +1,202 @@
+/* Studio chrome: a quiet drafting desk around a typeset, editable manuscript. */
+.workspace-app {
+    --bg: #f3f4f7; --surface: #fff; --surface-soft: #f8f9fc;
+    --text: #242733; --text-secondary: #737b8c; --border: #e1e5ee;
+    --border-strong: #cbd1df; --accent: #4b5fdb; --accent-hover: #394dc2;
+    --accent-soft: #eef0ff; --ink-dark: #242733; --radius: 7px;
+    --ui-font: "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+    --paper-font: Cambria, Georgia, "Noto Serif CJK SC", SimSun, serif;
+    font-family: var(--ui-font); -webkit-font-smoothing: antialiased;
+}
+.workspace-app .container {
+    display: grid; grid-template-columns: minmax(0,1fr) auto;
+    grid-template-rows: 68px 54px minmax(0,1fr) 27px;
+}
+.workspace-app button { font-size: 12px; font-weight: 500; border-color: var(--border); border-radius: 7px; box-shadow: none; }
+.workspace-app button:hover { border-color: #ccd3ea; background: #f0f2fa; }
+.workspace-app button:disabled { opacity: .36; }
+.workspace-app :is(button,input,select,textarea,[contenteditable]):focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.workspace-app button.primary { background: var(--accent); border-color: var(--accent); box-shadow: 0 2px 5px #4b5fdb24; }
+.workspace-app button.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+.ui-icon { width: 17px; height: 17px; flex: 0 0 17px; vertical-align: middle; pointer-events: none; }
+.workspace-app .icon-button { display: inline-flex; justify-content: center; align-items: center; gap: 7px; }
+.workspace-app .icon-only .button-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
+
+/* Project context is distinct from the document's editing tools. */
+.workspace-header { grid-column: 1/-1; min-height: 0; padding: 0 24px; gap: 28px; border-bottom: 1px solid var(--border); }
+.brand-block { gap: 10px; min-width: 192px; }
+.brand-monogram { width: 33px; height: 37px; display: grid; place-items: center; border-radius: 9px; background: var(--accent); color: white; font: italic 28px/.9 Cambria,Georgia,serif; box-shadow: 0 3px 7px #4b5fdb1c; }
+.brand-block h1 { font: 600 18px/1.15 var(--ui-font); letter-spacing: -.75px; }
+.brand-block h1 span { font: 9px/1 var(--ui-font); color: #8a91a2; letter-spacing: 2.4px; margin-top: 5px; }
+.language-signature { display: none; }
+.project-identity { max-width: 360px; padding-left: 24px; border-left: 1px solid var(--border); gap: 9px; }
+.project-identity label { font-size: 11px; color: #8a91a2; }
+.project-identity input { min-height: 34px; padding: 5px 8px !important; background: transparent !important; border: 1px solid transparent !important; font-weight: 500 !important; }
+.project-identity input:hover { background: var(--surface-soft) !important; }
+.project-identity input:focus { background: var(--surface-soft) !important; border-color: var(--border) !important; }
+.project-actions { gap: 8px; }
+.project-actions button { min-height: 34px; padding: 6px 11px; background: transparent; border-color: transparent; color: #586176; }
+.workspace-app #btnExportProject { border-color: var(--border); background: white; color: var(--text); box-shadow: none; }
+
+/* One compact command row, with compilation as the single primary action. */
+.workspace-toolbar.toolbar { min-width: 0; margin: 0; padding: 0 16px; gap: 10px; background: white; border-bottom: 1px solid var(--border); overflow: auto; scrollbar-width: thin; }
+.workspace-toolbar .tool-group { gap: 3px; flex-shrink: 0; }
+.workspace-toolbar.toolbar button { min-height: 32px; padding: 5px 7px; border-color: transparent; background: transparent; border-radius: 6px; font-size: 12px; }
+.workspace-toolbar.toolbar button:hover { background: var(--accent-soft); color: var(--accent); }
+.workspace-toolbar.toolbar .icon-only { width: 32px; padding: 5px; }
+.workspace-toolbar .separator { height: 19px; background: var(--border); margin: 0; }
+.workspace-toolbar :is(#btnH1,#btnH2,#btnH3) { font-family: Cambria,Georgia,serif; font-weight: 600; font-size: 15px; }
+.workspace-toolbar :is(#btnBold,#btnItalic) { font-family: Georgia,serif; font-size: 15px; width: 30px; }
+.workspace-toolbar :is(#btnInlineFormula,#btnBlockFormula) { font-size: 12px; }
+.math-tool-sign { font: italic 18px Cambria,Georgia,serif; margin-right: 4px; color: #515f82; }
+.compile-toolbar { min-width: 0; flex-wrap: nowrap; gap: 6px; padding: 0 18px 0 10px; background: white; border-bottom: 1px solid var(--border); }
+.compile-toolbar > label { display: none; }
+.workspace-app .compile-toolbar select { width: 118px; min-width: 0; max-width: 150px; height: 32px; font-size: 11px; padding-left: 8px; background: var(--surface-soft); border-color: transparent; }
+.compile-toolbar button { min-height: 32px; padding: 5px 11px; }
+#btnCompile::before { content: ""; display: inline-block; vertical-align: -1px; margin-right: 7px; width: 0; height: 0; border-top: 5px solid transparent; border-bottom: 5px solid transparent; border-left: 7px solid currentColor; }
+.compiler-status { display: none; }
+.compile-toolbar:has(#btnCompile:disabled):not(:has(#btnCancelCompile:not([hidden]))) .compiler-status {
+    display: inline; max-width: 120px; color: #8b624a; font-size: 10px; margin-left: 2px;
+}
+.workspace-app #btnCompilerRetry { min-height: 30px; width: 28px; padding: 5px; }
+.workspace-app #btnTogglePreview { width: 32px; padding: 6px; border-color: transparent; }
+.workspace-app #btnTogglePreview[aria-expanded="true"] { background: var(--accent-soft); color: var(--accent); }
+
+/* File navigation and reference tools remain secondary to the manuscript. */
+.workbench.main-content { grid-column: 1/-1; grid-template-columns: 218px minmax(0,1fr) 236px; }
+.project-sidebar, .context-sidebar { background: #fafbfe; }
+.sidebar-heading { min-height: 58px; padding: 16px 17px 10px; }
+.sidebar-heading h2 { color: #555e72; font-size: 12px; font-weight: 600; letter-spacing: .5px; }
+.workspace-app .small-button { font-size: 12px; color: var(--text-secondary); }
+.file-import-actions { padding: 0 14px 15px; gap: 7px; }
+.file-import-actions button { min-height: 32px; background: white; font-size: 11px; padding: 5px 7px; }
+.file-tree { padding: 8px 10px 16px; border-top: 1px solid #edf0f6; border-bottom: 0; }
+.file-tree button { min-height: 40px; padding: 10px 11px; border: 0; border-radius: 7px; color: #60697c; font: 12px/1.6 var(--editor-font); margin: 2px 0; }
+.file-tree button::before { content: ""; width: 11px; height: 14px; border: 1px solid #a3adbf; border-radius: 2px; flex: 0 0 11px; background: linear-gradient(#a3adbf,#a3adbf) 2px 8px/6px 1px no-repeat; }
+.file-tree button[title="bibtex"]::before { border-color: #8998a5; background: linear-gradient(90deg, transparent 4px,#8998a5 4px,#8998a5 5px,transparent 5px); }
+.file-tree button.active, .file-tree button[aria-current="true"], .file-tree button[aria-selected="true"] { background: #eaeefe; border: 0; box-shadow: none; color: #3f50bd; font-weight: 600; }
+.file-tree button.active::before { border-color: #6e7cce; }
+.file-actions { gap: 5px; padding: 12px 13px 2px; border-top: 1px solid var(--border); }
+.file-actions button { min-height: 28px; font-size: 10px; padding: 4px 6px; background: transparent; border-color: transparent; color: #6d7588; }
+.file-actions button:hover { background: #eceff7; }
+.sidebar-note { padding: 10px 17px 17px; font-size: 11px; line-height: 1.8; color: #737e91; }
+.context-sidebar { background: white; }
+.context-list { padding: 0 12px 15px; font-size: 12px; }
+.context-list button { padding: 8px 9px; min-height: 35px; font-size: 12px; font-weight: 400; color: #687186; border: 1px solid transparent; background: transparent; border-radius: 6px; line-height: 1.6; }
+.outline-section { min-height: 120px; flex-basis: 29%; }
+.outline-section .context-list button { border-left: 2px solid #e7eaf3; border-radius: 0; padding-left: 13px; margin-left: 5px; width: calc(100% - 5px); color: #414b62; }
+.reference-actions { gap: 6px; padding: 0 16px 15px; }
+.reference-actions button { min-height: 32px; font-size: 11px; border-color: var(--border); background: white; }
+.reference-actions button:hover { background: var(--accent-soft); color: var(--accent); }
+
+/* Paper, not a second application panel. No decoration is inserted in the DOM. */
+.document-header { min-height: 59px; padding: 11px 24px; background: #fbfcfe; border-bottom: 1px solid var(--border); }
+.document-location { gap: 9px; }
+.current-path { font-size: 12px; color: #525d74; }
+.language-badge { border: 1px solid #e4e7ef; background: white; color: #8390aa; font: 9px var(--editor-font); padding: 3px 5px; }
+.mode-switch { padding: 3px; gap: 0; border: 0; border-radius: 8px; background: #eceff5; }
+.mode-switch button { min-height: 30px; padding: 5px 13px; font-size: 11px; border-radius: 6px; }
+.mode-switch button.active, .mode-switch button[aria-pressed="true"] { background: white; color: #354570; box-shadow: 0 1px 4px #30395812; }
+.visual-panel { background: var(--bg); }
+.mode-note { padding: 13px 24px 0; text-align: center; background: transparent; border: 0; color: #737f94; font-size: 11px; }
+.mode-note::before { content: ""; width: 4px; height: 4px; border-radius: 50%; display: inline-block; background: #abb5d5; vertical-align: 2px; margin-right: 7px; }
+.workspace-app .editor-area { width: min(calc(100% - 48px),820px); margin: 18px auto 24px; padding: 48px 54px 90px; border: 1px solid #e4e7ee; border-radius: 2px; background: white; box-shadow: 0 4px 24px #252d4410; color: #292e39; font: 17px/1.95 var(--paper-font); caret-color: var(--accent); scrollbar-width: thin; }
+.workspace-app .editor-area:focus { outline: none; background: white; border-color: #d5dbe9; box-shadow: 0 4px 24px #252d4410,0 0 0 1px #dfe4f0; }
+.workspace-app .editor-area:focus-visible { outline: 2px solid #bdc7f0; outline-offset: 3px; }
+.workspace-app .editor-area h1 { margin: 0 0 24px; padding: 0; border: 0; color: #252a37; font: 600 30px/1.35 var(--paper-font); letter-spacing: -.6px; }
+.workspace-app .editor-area h2 { margin: 29px 0 15px; padding: 0; border: 0; color: #303746; font: 600 24px/1.45 var(--paper-font); }
+.workspace-app .editor-area h3 { margin: 24px 0 12px; color: #424a5c; font: 600 20px/1.5 var(--paper-font); }
+.workspace-app .editor-area p { margin: 12px 0 18px; text-align: left; }
+.workspace-app .editor-area .formula-inline { padding: 1px 4px; background: transparent; border-color: transparent; color: inherit; }
+.workspace-app .editor-area .formula-block { position: relative; margin: 27px 0; padding: 18px 24px 15px; background: #fcfcfe; border: 1px solid #f0f2f7; border-radius: 7px; }
+.workspace-app .editor-area :is(.formula-inline,.formula-block):hover { background: #f3f5ff; border-color: #d3daf6; }
+.workspace-app .editor-area :is(.formula-inline,.formula-block):focus-visible { border-color: var(--accent); outline: 2px solid #d9dff8; }
+.workspace-app .visual-math-label { margin-top: 12px; color: #737f94; font: 10px/1.5 var(--editor-font); }
+.workspace-app .editor-area .tex-cmd[data-visual-reference] { max-width: 100%; vertical-align: baseline; padding: 0 3px; border: 0; border-bottom: 1px solid #ccd3ef; border-radius: 3px 3px 0 0; background: transparent; color: #5265ad; font: inherit; font-size: .88em; line-height: 1.65; }
+.workspace-app .editor-area .tex-cmd[data-visual-reference]:hover { background: #eef1ff; color: #3e51b1; filter: none; }
+.workspace-app .editor-area .tex-cmd[data-visual-reference="label"] { color: #65718a; border: 1px solid #e7eaf1; border-radius: 4px; padding: 1px 5px; font: 10px/1.8 var(--editor-font); background: #fcfcfe; }
+.workspace-app .editor-area .tex-cmd:is([data-visual-reference="include"],[data-visual-reference="bibliography"],[data-visual-reference="style"]) { color: #79859d; border-color: #dce1ec; font-size: .77em; }
+.document-footer { min-height: 25px; padding: 3px 20px; font-size: 10px; background: #f3f4f7; border-top: 0; color: #9199aa; }
+.source-hint { display: none; }
+.workspace-status.status-bar { grid-column: 1/-1; min-height: 0; padding: 4px 18px; background: #fff; border-top: 1px solid var(--border); color: #8b93a3; font-size: 10px; }
+.workspace-status #saveState { color: #78849a; }
+.line-numbers { background: #f9fafd; color: #a3adbf; border-color: #edf0f5; font-size: 13px; }
+.workspace-app .source-area { color: #39435a; font-size: 14px; line-height: 1.8; padding-top: 22px; }
+.find-panel { background: #fbfcff; box-shadow: inset 2px 0 var(--accent); }
+
+/* The PDF proof shares the same desk and paper treatment. */
+.compilation-visible .workbench.main-content { grid-template-columns: 184px minmax(280px,1fr) minmax(320px,44%); }
+.compilation-visible .document-header { padding: 10px 16px; }
+.compilation-visible .editor-area { width: calc(100% - 32px); padding-left: 30px; padding-right: 30px; }
+.pdf-preview-pane { background: var(--bg); border-color: var(--border); }
+.pdf-preview-header { background: #fbfcfe; min-height: 59px; padding: 11px 18px; }
+.pdf-preview-header h2 { color: #3f4a61; font-size: 12px; }
+.pdf-edit-note { background: transparent; color: #919aaa; font-size: 10px; padding: 12px 18px 5px; }
+.compile-status { background: transparent; color: #7d879b; font-size: 10px; padding: 4px 18px 10px; }
+.preview-page-controls { border: 0; background: transparent; padding: 0 10px 10px; }
+.preview-page-controls button { background: white; font-size: 10px; }
+.pdf-page-view { padding: 8px 22px 22px; }
+.pdf-page-view img { box-shadow: 0 4px 24px #252d4410; border: 1px solid #e4e7ee; }
+.pdf-open { background: transparent; text-decoration: none; color: #8793ab; padding: 7px 18px; }
+.compile-logs { background: #fbfcfe; border-color: var(--border); }
+.compile-logs summary { font-size: 11px; color: #6c7790; }
+
+@media (max-width: 1250px) {
+    .workspace-app .container { grid-template-columns: minmax(0,1fr); grid-template-rows: 62px 46px 46px minmax(0,1fr) 26px; }
+    .workspace-header { padding: 0 18px; }
+    .workspace-toolbar.toolbar { justify-content: center; }
+    .compile-toolbar { padding: 0 18px; justify-content: flex-end; background: #fbfcfe; }
+    .compile-toolbar > label { display: block; margin-right: auto; font-size: 10px; color: #939bad; }
+    .compiler-status { display: inline; margin-left: 5px; font-size: 10px; }
+    .workbench.main-content { grid-template-columns: 190px minmax(0,1fr) 216px; }
+    .workspace-app .editor-area { padding: 36px 38px 70px; width: calc(100% - 36px); }
+    .project-identity { padding-left: 15px; }
+}
+@media (max-width: 1100px) {
+    .workbench.main-content { grid-template-columns: 190px minmax(0,1fr); }
+    .context-sidebar { display: none; }
+    .outline-open .context-sidebar { display: flex; width: 264px; border-left: 1px solid var(--border); box-shadow: -12px 0 40px #303d5a12; }
+    .compilation-visible .workbench.main-content { grid-template-columns: minmax(260px,1fr) minmax(320px,49%); }
+    .compilation-visible .project-sidebar { display: none; }
+    .compilation-visible.files-open .project-sidebar { display: flex; }
+    .brand-block { min-width: 177px; }
+}
+@media (max-width: 700px) {
+    .workspace-app .container { grid-template-rows: auto 47px auto minmax(0,1fr) 26px; }
+    .workspace-header { padding: 13px 14px 10px; gap: 12px 14px; flex-wrap: wrap; }
+    .brand-block { min-width: 0; gap: 8px; }
+    .brand-monogram { width: 28px; height: 31px; font-size: 24px; border-radius: 7px; }
+    .brand-block h1 { font-size: 15px; }
+    .brand-block h1 span { font-size: 7px; letter-spacing: 2px; }
+    .project-identity { padding: 0; border: 0; flex: 1; min-width: 90px; max-width: 155px; margin-left: auto; }
+    .project-identity input { font-size: 13px !important; min-height: 34px; }
+    .project-actions { width: 100%; justify-content: flex-end; gap: 6px; }
+    .project-actions button { flex: 1; min-height: 33px; font-size: 11px; background: #f7f8fc; border-color: #edf0f6; }
+    .workspace-toolbar.toolbar { justify-content: flex-start; padding: 0 10px; gap: 8px; }
+    .workspace-toolbar.toolbar button { min-height: 36px; }
+    .workspace-toolbar.toolbar .icon-only { width: 34px; }
+    #btnFiles { display: inline-flex; }
+    .compile-toolbar { flex-wrap: wrap; padding: 8px 10px; gap: 6px; justify-content: flex-start; }
+    .compile-toolbar > label, .compiler-status { display: none; }
+    .workspace-app .compile-toolbar select { flex: 1 1 95px; max-width: none; min-width: 60px; height: 35px; font-size: 11px; }
+    .compile-toolbar button { min-height: 35px; padding: 5px 9px; font-size: 11px; }
+    .workspace-app #btnCompilerRetry { width: 24px; padding: 4px; }
+    .workbench.main-content, .compilation-visible .workbench.main-content { grid-template-columns: minmax(0,1fr); }
+    .project-sidebar { display: none; }
+    .files-open .project-sidebar { display: flex; }
+    .document-header { padding: 10px 12px; min-height: 55px; gap: 6px; }
+    .document-location { gap: 6px; flex-basis: 100px; }
+    .mode-switch button { padding: 6px 9px; min-height: 33px; font-size: 11px; }
+    .language-badge { display: none; }
+    .mode-note { padding: 10px 12px 0; font-size: 9px; }
+    .workspace-app .editor-area { width: calc(100% - 24px); padding: 30px 24px 60px; margin: 12px auto; font-size: 16px; line-height: 1.9; }
+    .workspace-app .editor-area h1 { font-size: 26px; }
+    .workspace-app .editor-area .formula-block { padding: 13px 10px; margin: 20px 0; }
+    .source-panel .source-area, .line-numbers { font-size: 16px; }
+    .file-tree button, .context-list button { min-height: 40px; }
+    .compilation-visible .document-pane { display: none; }
+    .pdf-preview-header { min-height: 53px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .workspace-app *, .workspace-app *::before, .workspace-app *::after { transition: none !important; animation: none !important; }
+}

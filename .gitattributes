@@ -1,0 +1,2 @@
+# Vendored files must retain their registry bytes for manifest verification.
+vendor/mathlive/** -text
