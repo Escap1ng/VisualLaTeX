@@ -6,7 +6,7 @@ The workspace centers the manuscript, with compact editing and compile controls,
 
 ![VisualLaTeX Studio](screenshots/studio-workspace.jpg)
 
-This workspace edition continues [Escap1ng/VisualLaTeX](https://github.com/Escap1ng/VisualLaTeX)'s purpose of visually modifying existing LaTeX documents, adding full source access, multiple files, references, bibliography entries, ZIP projects and real compilation. It bundles MathLive 0.111.1 (MIT) and its fonts for formula editing. Offline editing needs no npm installation or build step. Compilation uses Node.js 22+ and a local typesetting toolchain.
+VisualLaTeX Studio continues VisualLaTeX's purpose of visually modifying existing LaTeX documents, adding full source access, multiple files, references, bibliography entries, ZIP projects and real compilation. It bundles MathLive 0.111.1 (MIT) and its fonts for formula editing. Offline editing needs no npm installation or build step. Compilation uses Node.js 22+ and a local typesetting toolchain.
 
 **Complete LaTeX documents open in Visual editing by default.** Edit text and headings directly and use the formatting toolbar. Click a typeset formula to edit fractions, superscripts and subscripts in a graphical math field. References and labels appear as readable items that open an editor when clicked, without switching to source. Untouched source stays intact, and the current session remembers the selected editing mode for each file.
 
@@ -121,6 +121,18 @@ The pinned MathLive scripts, styles, fonts and license are in `vendor/mathlive/`
 See the [browser acceptance checklist](tests/browser-acceptance.md) for manual end-to-end validation. Actual engine validation in this iteration used Tectonic and Ghostscript; the XeLaTeX path has not yet been verified against a real distribution.
 
 `workspace.js` coordinates editing, `project-model.js` owns canonical source/history/indexes, and `project-archive.js` handles ZIP. `visual-math.js`/`.css` adapt MathLive for formula rendering and editing; `visual-references*.js`/`.css` provide reference semantics, readable displays and editing dialogs. `preview.js` manages PDF state and export; `compiler.mjs` and `server.mjs` run the local compilation service, while `pdf-preview.mjs` renders bounded page images. `setup-windows.ps1` and `start.ps1` prepare portable tools and start the service. The original `main.js` remains the visual LaTeX conversion core.
+
+<details>
+<summary><b>Version History</b></summary>
+
+- **v2.0.3**: fixed import data loss and HTML injection — the `.tex` parser now reads commands, environments, math and verbatim blocks, so untouched source blocks are preserved byte for byte; added `\(...\)` and `\[...\]` delimiters plus `\verb` and `\lstinline` support; double-click a visual formula to edit it; drafts are saved atomically with a version marker and flushed when the page is hidden, and legacy drafts are sanitized before restore; added 70 `node --test` regression tests
+- **v2.0.2**: mobile and narrow-viewport adaptation — one panel per screen with bottom tabs switching between the editor and LaTeX code, toolbar collapsed into a single horizontally scrollable row with >=44px touch targets, `min-height:0` fix so the code preview is no longer clipped off-screen, `100dvh` and 16px inputs so iOS no longer zooms the page on focus; LaTeX conversion and export logic unchanged
+- **v2.0.1**: maintenance release, main.js unchanged; license moved from MIT to Apache-2.0; UI restyled with design tokens and a warm-white academic theme, toolbar buttons switched to plain text; added CI checks and automatic GitHub Pages demo deployment
+- **v2.0.0**: repositioned as a general offline LaTeX light editor; added .tex import; verbatim preservation of unsupported structures for lossless round-trips; fixed preamble not being cached with drafts and formulas losing user edits
+- **v1.1.0**: visual editor + formula assistant for math-modeling papers (removed in v2.0.0)
+- **v1.0.0**: initial release
+
+</details>
 
 ## License
 
