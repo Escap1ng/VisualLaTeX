@@ -26,6 +26,17 @@
 
     const pathKey = path => path.normalize('NFC').toLowerCase();
 
+    function reserveFilePath(path, names) {
+        const key = pathKey(path);
+        if (names.has(key)) throw new Error('文件已存在：' + path);
+        for (const name of names) {
+            if (key.startsWith(name + '/') || name.startsWith(key + '/')) {
+                throw new Error('文件与目录路径冲突：' + path);
+            }
+        }
+        names.add(key);
+    }
+
     function checkText(text, encoding) {
         if (typeof text !== 'string') throw new Error('文本文件必须提供字符串内容');
         if (encoding === 'latin1') {
@@ -203,8 +214,7 @@
             let size = this.totalBytes;
             const records = files.map(input => {
                 const record = normalizeFile(input);
-                if (names.has(pathKey(record.file.path))) throw new Error('文件已存在：' + record.file.path);
-                names.add(pathKey(record.file.path));
+                reserveFilePath(record.file.path, names);
                 size += record.size;
                 if (size > MAX_TOTAL_BYTES) throw new Error('项目大小不能超过 50 MB');
                 return record;
@@ -224,8 +234,8 @@
             const file = this._files.get(oldPath);
             if (!file) throw new Error('文件不存在：' + oldPath);
             const path = validatePath(nextPath);
-            if (Array.from(this._files.keys()).some(name => name !== oldPath && pathKey(name) === pathKey(path))) throw new Error('文件已存在：' + path);
             if (oldPath === path) return this.get(path);
+            reserveFilePath(path, new Set(Array.from(this._files.keys()).filter(name => name !== oldPath).map(pathKey)));
             this._files = new Map(Array.from(this._files, ([name, entry]) => name === oldPath ? [path, {...entry, path}] : [name, entry]));
             this._sizes.set(path, this._sizes.get(oldPath));
             this._sizes.delete(oldPath);

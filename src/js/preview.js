@@ -47,7 +47,7 @@
             this.cancellation = null;
             this.abort = null;
             this.disposed = false;
-            this.preview = {state: 'empty', message: '', url: null, key: null, targetKey: null, page: 0, pageCount: 0, maxPages: 100};
+            this.preview = {state: 'empty', message: '', errorCode: null, url: null, key: null, targetKey: null, page: 0, pageCount: 0, maxPages: 100};
             this.previewGeneration = 0;
             this.previewAbort = null;
             this.previewTask = Promise.resolve(false);
@@ -148,7 +148,7 @@
         releasePreview() {
             this.stopPreview();
             if (this.preview.url) this.urls.revokeObjectURL(this.preview.url);
-            this.preview = {state: 'empty', message: '', url: null, key: null, targetKey: null, page: 0, pageCount: 0, maxPages: 100};
+            this.preview = {state: 'empty', message: '', errorCode: null, url: null, key: null, targetKey: null, page: 0, pageCount: 0, maxPages: 100};
         }
         previewSession(result) {
             this.stopPreview();
@@ -166,13 +166,23 @@
                 if (response.status === 409 && body.code === 'PREVIEW_BUSY' && attempt < 2) {
                     await this.sleep(400, signal); continue;
                 }
-                throw new Error(body.error || '页面预览暂时不可用；仍可导出 PDF。');
+                throw Object.assign(new Error(body.error || '页面预览暂时不可用；仍可导出 PDF。'), {code: body.code});
             }
+        }
+        async retryPreview() {
+            if (!this.result || this.busy || this.disposed) return false;
+            const result = this.result, generation = this.generation;
+            if (this.preview.errorCode !== 'JOB_NOT_FOUND' && await this.loadPreview(result)) return true;
+            if (this.disposed || generation !== this.generation || this.result !== result || this.preview.errorCode !== 'JOB_NOT_FOUND') return false;
+            // Rebuild an evicted result only in response to an explicit retry.
+            // compile() snapshots the current source and guards project changes.
+            if (!await this.compile()) return false;
+            return this.previewTask;
         }
         async loadPreview(result = this.result) {
             if (!result?.jobId || this.disposed) return false;
             const session = this.previewSession(result);
-            Object.assign(this.preview, {state: 'loading', message: 'PDF 已生成，正在准备页面预览…', targetKey: result.key, pageCount: 0});
+            Object.assign(this.preview, {state: 'loading', message: 'PDF 已生成，正在准备页面预览…', errorCode: null, targetKey: result.key, pageCount: 0});
             this.emit();
             try {
                 const response = await this.previewResponse('/api/jobs/' + encodeURIComponent(result.jobId) + '/preview', session.abort.signal);
@@ -190,6 +200,7 @@
             } catch (error) {
                 if (!session.current()) return false;
                 this.preview.state = 'failed';
+                this.preview.errorCode = error.code || null;
                 this.preview.message = '页面预览失败：' + error.message + ' PDF 仍可导出。';
                 this.emit(); return false;
             } finally { if (session.current()) this.previewAbort = null; }
@@ -200,6 +211,7 @@
                 page > Math.min(this.preview.pageCount, this.preview.maxPages) || this.disposed) return false;
             const session = this.previewSession(result);
             this.preview.state = 'loading';
+            this.preview.errorCode = null;
             this.preview.message = '正在加载第 ' + page + ' 页…';
             this.emit();
             try {
@@ -214,7 +226,8 @@
             } catch (error) {
                 if (!session.current()) return false;
                 this.preview.state = 'failed';
-                this.preview.message = '页面加载失败：' + error.message + ' 可重试或导出 PDF。';
+                this.preview.errorCode = error.code || null;
+                this.preview.message = '页面加载失败：' + error.message + (error.code === 'JOB_NOT_FOUND' ? ' 可重新编译预览或导出已有 PDF。' : ' 可重试或导出 PDF。');
                 this.emit(); return false;
             } finally { if (session.current()) this.previewAbort = null; }
         }
@@ -408,6 +421,8 @@
             $('btnPreviousPage').disabled = page.state === 'loading' || currentPage <= 1;
             $('btnNextPage').disabled = page.state === 'loading' || !currentPage || currentPage >= limit;
             $('btnRetryPage').hidden = !controller.result || !['failed', 'unavailable', 'empty'].includes(page.state);
+            $('btnRetryPage').disabled = controller.busy;
+            $('btnRetryPage').textContent = page.errorCode === 'JOB_NOT_FOUND' ? '重新编译预览' : '重试预览';
             $('previewStale').hidden = !controller.stale && !(showingImage && page.key !== controller.result.key);
             $('previewStale').textContent = showingImage && page.key !== controller.result.key
                 ? '当前仍显示上一次编译的页面，正在加载新结果。' : '当前显示上一次结果；请重新编译以反映最新源码。';
@@ -454,7 +469,7 @@
         $('btnCompilerRetry').addEventListener('click', () => controller.connect());
         $('btnPreviousPage').addEventListener('click', () => { controller.previewTask = controller.loadPage(controller.preview.page - 1); });
         $('btnNextPage').addEventListener('click', () => { controller.previewTask = controller.loadPage(controller.preview.page + 1); });
-        $('btnRetryPage').addEventListener('click', () => { controller.previewTask = controller.loadPreview(); });
+        $('btnRetryPage').addEventListener('click', () => { controller.previewTask = controller.retryPreview(); });
         document.addEventListener('keydown', event => {
             if (event.defaultPrevented || event.target?.closest?.('[role="dialog"]')) return;
             if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {

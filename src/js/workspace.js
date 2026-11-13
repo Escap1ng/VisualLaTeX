@@ -678,8 +678,17 @@ function initWorkspace() {
         return entries;
     }
     $('importFiles').addEventListener('change', safely(async event => {
+        const project = app.model;
         app.sync();
-        const entries = await readFiles(Array.from(event.target.files), false);
+        let entries;
+        try { entries = await readFiles(Array.from(event.target.files), false); }
+        catch (error) {
+            if (app.model === project) throw error;
+            return;
+        }
+        // A project replacement invalidates pending imports, including failures.
+        // Neither files nor status from the old project belong in the new one.
+        if (app.model !== project) return;
         // Reading files is asynchronous: retain any edits made while waiting.
         // addMany validates the full batch atomically and preserves undo history.
         app.sync();

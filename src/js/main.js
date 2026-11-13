@@ -1043,13 +1043,26 @@ function convertNodeToLatex(node) {
 }
 
 function convertInlineNodes(node) {
+    const children = Array.from(node.childNodes);
+    const content = children.filter(child => child.nodeType !== Node.TEXT_NODE || child.textContent !== '');
+    // contenteditable keeps an unsourced <br> in an emptied paragraph so the
+    // caret remains visible. Imported breaks and breaks beside text are real.
+    if (/^(p|div)$/i.test(node.tagName) && content.length === 1 &&
+        content[0].nodeType === Node.ELEMENT_NODE && content[0].tagName.toLowerCase() === 'br' &&
+        content[0].getAttribute('data-tex-source') === null) return '';
     let latex = '';
     let pendingComment = false;
-    Array.from(node.childNodes).forEach(function(child) {
+    children.forEach(function(child) {
         const part = convertNodeToLatex(child);
         if (!part) return;
         // 段尾注释的换行可能保存在外部空白节点中；追加文字时必须先结束注释。
         if (pendingComment && !/^[ \t]*[\r\n]/.test(part)) latex += '\n';
+        else if (/^[A-Za-z@]/.test(part)) {
+            // A removed space must not turn separate atoms into \LaTeXbook.
+            // An even run of backslashes ends in a control symbol, not a word.
+            const command = /(\\+)[A-Za-z@]+$/.exec(latex);
+            if (command && command[1].length % 2 === 1) latex += '{}';
+        }
         latex += part;
         pendingComment = child.nodeType === Node.ELEMENT_NODE && child.classList.contains('tex-cmd') &&
             child.getAttribute('hidden') !== null && part.startsWith('%') && !/[\r\n]/.test(part);

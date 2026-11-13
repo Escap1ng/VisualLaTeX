@@ -88,12 +88,15 @@ export function createWorkspaceServer({
         jobs.delete(job.id);
     }
     function sweep() {
-        for (const job of jobs.values()) if (!job.active && now() - job.finishedAt >= jobTTL) discard(job);
+        // Completed results expire after inactivity, so reading a long document
+        // does not lose its pages merely because compilation finished earlier.
+        for (const job of jobs.values()) if (!job.active && now() - (job.lastAccessAt ?? job.finishedAt) >= jobTTL) discard(job);
     }
     async function previewOperation(job, res, operation) {
         if (previewActive) throw error('已有页面预览正在生成，请稍后重试。', 409, 'PREVIEW_BUSY');
         const active = {job, controller: new AbortController()};
         previewActive = active;
+        job.lastAccessAt = now();
         const disconnected = () => { if (!res.writableEnded) active.controller.abort(); };
         res.once('close', disconnected);
         try {
@@ -175,7 +178,7 @@ export function createWorkspaceServer({
                         if (job.controller.signal.aborted) return;
                         Object.assign(job, {state: 'failed', error: problem.message || '编译失败', code: problem.code || 'COMPILE_FAILED',
                             log: String(problem.log || '').slice(-200_000)});
-                    }).finally(() => { job.active = false; job.finishedAt = now(); });
+                    }).finally(() => { job.active = false; job.lastAccessAt = job.finishedAt = now(); });
                     return;
                 }
                 const match = /^\/api\/jobs\/([0-9a-f-]+)(\/pdf|\/preview(?:\/([0-9]+))?)?$/.exec(path);
@@ -195,6 +198,7 @@ export function createWorkspaceServer({
                 if (req.method !== 'GET') throw error('不支持的操作。', 405);
                 if (match[2] === '/pdf') {
                     if (job.state !== 'succeeded') throw error('PDF 尚未生成。', 409, 'PDF_NOT_READY');
+                    job.lastAccessAt = now();
                     res.writeHead(200, {'Content-Type': 'application/pdf', 'Content-Length': job.pdf.length,
                         'Content-Disposition': 'inline; filename="preview.pdf"'});
                     res.end(job.pdf);
@@ -202,7 +206,7 @@ export function createWorkspaceServer({
                     if (job.state !== 'succeeded') throw error('PDF 尚未生成。', 409, 'PDF_NOT_READY');
                     const info = job.previewInfo || await previewOperation(job, res, options => previewInfo(job.pdf, options));
                     if (info.available) job.previewInfo = info;
-                    if (!match[3]) { json(200, info); return; }
+                    if (!match[3]) { job.lastAccessAt = now(); json(200, info); return; }
                     if (!info.available) throw error(info.reason || '没有可用的预览引擎，仍可下载 PDF。', 503, 'PREVIEW_ENGINE_MISSING');
                     const page = Number(match[3]);
                     if (!Number.isSafeInteger(page) || page < 1 || page > Math.min(info.pageCount, info.maxPages)) {
@@ -212,12 +216,16 @@ export function createWorkspaceServer({
                         : await previewOperation(job, res, options => previewRenderer(job.pdf, page, {...options, pageCount: info.pageCount}));
                     job.previewCache = {page, png};
                     if (res.destroyed || res.writableEnded) return;
+                    job.lastAccessAt = now();
                     res.writeHead(200, {'Content-Type': 'image/png', 'Content-Length': png.length,
                         'X-Preview-Page': String(page), 'X-Preview-Page-Count': String(info.pageCount)});
                     res.end(png);
-                } else json(200, {id: job.id, state: job.state, log: job.log, error: job.error, code: job.code,
-                    engine: job.engine, mainPath: job.mainPath,
-                    ...(job.state === 'succeeded' ? {pdfUrl: '/api/jobs/' + job.id + '/pdf'} : {})});
+                } else {
+                    job.lastAccessAt = now();
+                    json(200, {id: job.id, state: job.state, log: job.log, error: job.error, code: job.code,
+                        engine: job.engine, mainPath: job.mainPath,
+                        ...(job.state === 'succeeded' ? {pdfUrl: '/api/jobs/' + job.id + '/pdf'} : {})});
+                }
                 return;
             }
             if (!['GET', 'HEAD'].includes(req.method)) throw error('不支持的操作。', 405);

@@ -508,6 +508,72 @@ test('missing Ghostscript falls back without invalidating a successful downloada
     assert.equal(await f.controller.exportPdf(), true);
 });
 
+test('the retry control recompiles an expired result and restores page images', async () => {
+    let expired = false;
+    const f = await workspaceFixture({route: async url => {
+        if (expired && url.startsWith('/api/jobs/job-1/preview')) return json({code: 'JOB_NOT_FOUND', error: 'Result expired'}, 404);
+        if (url.endsWith('/preview')) return json({available: true, pageCount: 3, maxPages: 100});
+        if (/\/preview\/\d+$/.test(url)) return {ok: true, blob: async () => new Blob(['png'], {type: 'image/png'})};
+    }});
+    await f.controller.compile(); await f.controller.previewTask;
+    const previousPdf = f.controller.result.url;
+    const downloads = [];
+    f.controller.download = url => downloads.push(url);
+    expired = true;
+    assert.equal(await f.controller.loadPage(2), false);
+    assert.equal(f.calls.filter(call => call.url === '/api/compile').length, 1, 'passive page failure does not start a compiler');
+    assert.equal(await f.controller.exportPdf(), true, 'cached PDF remains downloadable after server expiry');
+    assert.equal(downloads[0], previousPdf);
+    assert.equal(f.ids.get('btnRetryPage').hidden, false);
+    f.project.files[0].text += '\nLatest edit'; f.app.onChange();
+    f.ids.get('btnRetryPage').emit('click');
+    assert.equal(await f.controller.previewTask, true);
+    assert.equal(f.controller.result.jobId, 'job-2');
+    assert.equal(f.controller.preview.state, 'ready');
+    assert.equal(f.ids.get('pdfPageView').hidden, false);
+    const requests = f.calls.filter(call => call.url === '/api/compile');
+    assert.equal(requests.length, 2);
+    assert.match(JSON.parse(requests[1].init.body).project.files[0].text, /Latest edit$/);
+    f.controller.destroy();
+});
+
+test('retry discovers expired preview metadata but ordinary renderer failures do not recompile', async () => {
+    for (const code of ['JOB_NOT_FOUND', 'PREVIEW_FAILED']) {
+        let failed = true;
+        const f = await workspaceFixture({route: async url => {
+            if (url.endsWith('/preview')) {
+                if (failed) return json({code, error: 'Preview failed'}, code === 'JOB_NOT_FOUND' ? 404 : 500);
+                return json({available: true, pageCount: 1});
+            }
+            if (url.endsWith('/preview/1')) return {ok: true, blob: async () => new Blob(['png'], {type: 'image/png'})};
+        }});
+        await f.controller.compile(); await f.controller.previewTask;
+        failed = false;
+        f.ids.get('btnRetryPage').emit('click');
+        assert.equal(await f.controller.previewTask, true);
+        assert.equal(f.calls.filter(call => call.url === '/api/compile').length, code === 'JOB_NOT_FOUND' ? 2 : 1);
+        f.controller.destroy();
+    }
+});
+
+test('a late expiry response after cancelling retry cannot restart compilation', async () => {
+    const pending = deferred(), started = deferred();
+    let hold = false;
+    const f = await workspaceFixture({route: async url => {
+        if (hold && url.endsWith('/preview')) { started.resolve(); return pending.promise; }
+    }});
+    await f.controller.compile(); await f.controller.previewTask;
+    hold = true;
+    f.ids.get('btnRetryPage').emit('click');
+    const retrying = f.controller.previewTask;
+    await started.promise;
+    await f.controller.cancel();
+    pending.resolve(json({code: 'JOB_NOT_FOUND', error: 'Result expired'}, 404));
+    assert.equal(await retrying, false);
+    assert.equal(f.calls.filter(call => call.url === '/api/compile').length, 1);
+    f.controller.destroy();
+});
+
 test('a delayed page from a previous project cannot create an image after the project is cleared', async () => {
     const page = deferred(), started = deferred();
     const f = fixture({route: async url => {

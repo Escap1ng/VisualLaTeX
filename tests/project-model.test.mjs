@@ -58,6 +58,63 @@ test('batch import validates everything before adding any file', () => {
     assert.equal(model.list().length, 1);
 });
 
+test('construction and deserialization reject file-directory conflicts in both orders with case and NFC normalization', () => {
+    for (const [parent, child] of [['sections', 'sections/intro.tex'], ['Sections', 'sections/intro.tex'],
+        ['café', 'cafe\u0301/intro.tex'], ['folder', 'FOLDER\\nested\\intro.tex']]) {
+        for (const paths of [[parent, child], [child, parent]]) {
+            const files = paths.map(path => textFile(path, 'content'));
+            assert.throws(() => new ProjectModel({files}), /文件与目录路径冲突/);
+            assert.throws(() => ProjectModel.deserialize({format: 'visual-workspace', version: 1,
+                name: 'Conflicting project', files, mainPath: paths[0], activePath: paths[0]}), /文件与目录路径冲突/);
+        }
+    }
+});
+
+test('failed batch path conflicts leave files, sizes, current paths and undo/redo untouched', () => {
+    for (const [existing, conflict] of [['sections', 'sections/chapter.tex'], ['sections/chapter.tex', 'SECTIONS']]) {
+        const model = new ProjectModel({files: [textFile('main.tex', 'original'), textFile(existing, 'existing')]});
+        model.update('first edit'); model.update('second edit'); model.undo();
+        const expected = model.serialize();
+        const size = model.totalBytes;
+        assert.throws(() => model.addMany([textFile('would-have-been-added.txt', 'new'), textFile(conflict)]), /文件与目录路径冲突/);
+        assert.equal(model.serialize(), expected);
+        assert.equal(model.totalBytes, size);
+        assert.equal(model.redo().text, 'second edit');
+        assert.equal(model.undo().text, 'first edit');
+        assert.equal(model.undo().text, 'original');
+    }
+    const empty = new ProjectModel();
+    assert.throws(() => empty.addMany([textFile('a/b.tex'), textFile('A')]), /文件与目录路径冲突/);
+    assert.equal(empty.list().length, 0);
+    assert.equal(empty.totalBytes, 0);
+});
+
+test('conflicting renames fail atomically while preserving active/main paths and edit history', () => {
+    for (const [existing, renamed] of [['Sections', 'sections/main.tex'], ['café/chapter.tex', 'cafe\u0301']]) {
+        const model = new ProjectModel({files: [textFile('main.tex', 'original'), textFile(existing, 'existing')]});
+        model.update('edited');
+        const expected = model.serialize();
+        const size = model.totalBytes;
+        assert.throws(() => model.rename('main.tex', renamed), /文件与目录路径冲突/);
+        assert.equal(model.serialize(), expected);
+        assert.equal(model.totalBytes, size);
+        assert.equal(model.undo().text, 'original');
+        assert.equal(model.redo().text, 'edited');
+    }
+});
+
+test('valid siblings, similar path prefixes, case-only renames and moving a file under its old name remain supported', () => {
+    const model = new ProjectModel({files: [textFile('notes', 'old'), textFile('notes-extra/chapter.tex'),
+        textFile('shared/one.tex'), textFile('shared/two.tex')]});
+    model.update('edited');
+    model.rename('notes', 'NOTES');
+    model.rename('NOTES', 'notes/document.txt');
+    assert.equal(model.activePath, 'notes/document.txt');
+    assert.equal(model.mainPath, 'notes/document.txt');
+    assert.equal(model.undo().text, 'old');
+    assert.equal(model.list().length, 4);
+});
+
 test('file mutations update active and main paths while keeping text/history', () => {
     const model = new ProjectModel({files: [textFile('main.tex', 'old'), textFile('refs.bib', 'bib')]});
     model.update('new');
