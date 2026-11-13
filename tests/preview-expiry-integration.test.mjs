@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import vm from 'node:vm';
-import {createWorkspaceServer} from '../server.mjs';
+import {createWorkspaceServer} from '../server/server.mjs';
 
 test('real HTTP preview survives active reading and recovers an idle eviction on explicit retry', async t => {
     let clock = 1000, compilations = 0, downloads = 0, urlId = 0;
@@ -18,7 +18,7 @@ test('real HTTP preview survives active reading and recovers an idle eviction on
     const fetcher = (url, init) => fetch(base + url, init);
     const urls = {createObjectURL: () => 'blob:fixture/' + ++urlId, revokeObjectURL() {}};
     const context = vm.createContext({Blob, AbortController, setTimeout, clearTimeout, URL: urls, fetch: fetcher});
-    vm.runInContext(await readFile(new URL('../preview.js', import.meta.url), 'utf8'), context);
+    vm.runInContext(await readFile(new URL('../src/js/preview.js', import.meta.url), 'utf8'), context);
     const controller = new context.CompilationController({getRequest: () => structuredClone(request),
         fetch: fetcher, urls, protocol: 'http:', pollInterval: 1, download: () => { downloads++; }});
     t.after(() => controller.destroy());

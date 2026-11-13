@@ -2,9 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
-import {createWorkspaceServer} from '../server.mjs';
+import {createWorkspaceServer} from '../server/server.mjs';
 
-const code = readFileSync(new URL('../preview.js', import.meta.url), 'utf8');
+const code = readFileSync(new URL('../src/js/preview.js', import.meta.url), 'utf8');
 const PDF = Buffer.from('%PDF-1.4\nfixture\n%%EOF');
 const engines = {latex: {available: true, engine: 'tectonic', label: 'Tectonic'}, postscript: {available: false}};
 const request = {kind: 'latex', mainPath: 'main.tex', project: {format: 'visual-workspace', version: 1,

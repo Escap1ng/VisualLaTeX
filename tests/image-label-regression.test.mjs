@@ -20,7 +20,7 @@ function fixture() {
     const context = vm.createContext({document, TextEncoder, Node: {TEXT_NODE: 3, ELEMENT_NODE: 1},
         __editor: editor, __statuses: statuses});
     for (const name of ['main.js', 'project-model.js', 'visual-references.js']) {
-        vm.runInContext(fs.readFileSync(new URL('../' + name, import.meta.url), 'utf8'), context);
+        vm.runInContext(fs.readFileSync(new URL('../src/js/' + name, import.meta.url), 'utf8'), context);
     }
     // Only cursor placement and persistence notifications are outside this integration check.
     vm.runInContext(`editorArea = __editor;
