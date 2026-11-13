@@ -125,9 +125,14 @@ test('only one job runs at once and cancellation cannot be overwritten by a late
     const f = await fixture(t, {compiler: (_project, settings) => { signal = settings.signal; return new Promise(resolve => { finish = resolve; }); }});
     const {id} = await (await f.compile()).json();
     assert.equal((await f.compile()).status, 409);
-    assert.equal((await f.call('/api/jobs/' + id, {method: 'DELETE'})).status, 200);
+    let acknowledged = false;
+    const aborted = new Promise(resolve => signal.addEventListener('abort', resolve, {once: true}));
+    const cancelling = f.call('/api/jobs/' + id, {method: 'DELETE'}).then(response => { acknowledged = true; return response; });
+    await aborted;
     assert.equal(signal.aborted, true);
+    assert.equal(acknowledged, false, 'wait for the engine to release the compiler slot');
     finish({pdf: PDF, log: 'late', engine: 'tectonic'});
+    assert.equal((await cancelling).status, 200);
     assert.equal((await f.completed(id)).state, 'cancelled');
     assert.equal((await f.call('/api/jobs/' + id + '/pdf')).status, 409);
 });
@@ -151,6 +156,51 @@ test('expired results are removed and invalid engine output is rejected', async 
     const invalid = await fixture(t, {compiler: async () => ({pdf: Buffer.from('<html>not a PDF</html>')})});
     const bad = await (await invalid.compile()).json();
     assert.equal((await invalid.completed(bad.id)).code, 'INVALID_PDF');
+});
+
+test('reading pages renews result lifetime while idle results still expire', async t => {
+    let clock = 1;
+    const f = await fixture(t, {now: () => clock, jobTTL: 10,
+        previewInfo: async () => ({available: true, pageCount: 3, maxPages: 100}),
+        previewRenderer: async (_, page) => Buffer.from('PNG page ' + page)});
+    const {id} = await (await f.compile()).json(); await f.completed(id);
+    const route = '/api/jobs/' + id;
+    for (clock of [7, 13, 19, 25]) {
+        assert.equal((await f.call(route + '/preview/2')).status, 200, 'active readers retain both cached and rendered pages');
+    }
+    clock = 34;
+    assert.equal((await f.call(route + '/pdf')).status, 200, 'PDF downloads also count as use');
+    clock = 43;
+    assert.equal((await fetch(f.url + route)).status, 403, 'unauthenticated traffic cannot extend a result');
+    clock = 44;
+    assert.equal((await f.call(route)).status, 404, 'an idle result is still removed at the TTL');
+});
+
+test('a page render started near expiry renews the job before asynchronous rendering', async t => {
+    let clock = 1, finish, started, aborted = false;
+    const rendering = new Promise(resolve => { started = resolve; });
+    const f = await fixture(t, {now: () => clock, jobTTL: 10,
+        previewInfo: async () => ({available: true, pageCount: 1, maxPages: 100}),
+        previewRenderer: (_, __, {signal}) => new Promise(resolve => {
+            finish = () => resolve(Buffer.from('PNG page'));
+            signal.addEventListener('abort', () => { aborted = true; finish(); }, {once: true});
+            started();
+        })});
+    t.after(() => finish?.());
+    const {id} = await (await f.compile()).json(); await f.completed(id);
+    const route = '/api/jobs/' + id;
+    await f.call(route + '/preview');
+    clock = 9;
+    const pending = f.call(route + '/preview/1');
+    await rendering;
+    clock = 11;
+    await f.call('/api/status'); // Triggers a sweep without accessing this job.
+    assert.equal(aborted, false, 'the active request has already renewed its job');
+    clock = 18;
+    finish();
+    assert.equal((await pending).status, 200);
+    clock = 28;
+    assert.equal((await f.call(route)).status, 404, 'completion renews once but does not retain the job forever');
 });
 
 test('authenticated preview metadata and PNG pages are cached without delaying PDF downloads', async t => {

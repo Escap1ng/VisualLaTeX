@@ -168,7 +168,7 @@
         const field = document.getElementById('formulaMathField');
         if (!field || !root.customElements?.get('math-field')) return false;
         const parts = split(source);
-        session = {parts, dirty:false, values:[], field, node};
+        session = {parts, dirty:false, values:[], field, node, advancedSource:source};
         const error = document.getElementById('formulaError'); error.textContent = '';
         field.readOnly = !safe(source);
         field.value = safe(source) ? mathValue(parts,node?.getAttribute('data-environment')) : '';
@@ -182,7 +182,14 @@
             label.textContent = (entry.kind === 'label' ? '公式标签' : '显示编号')+(parts.rows.length > 1 ? '（第 '+(entry.row+1)+' 行）' : '');
             const input = document.createElement('input'); input.value = entry.value;
             input.setAttribute('aria-label',label.textContent);
-            input.addEventListener('input',()=> { if(session) session.values[i]=input.value; });
+            input.addEventListener('input',()=> {
+                if (!session) return;
+                session.values[i] = input.value;
+                // Advanced edits rebuild the session from this source. Keep
+                // it current so they cannot resurrect old labels or tags.
+                try { syncAdvancedInput(); error.textContent = ''; }
+                catch (problem) { error.textContent = problem.message; }
+            });
             label.appendChild(input); metadata.appendChild(label);
         });
         if (focus) field.focus();
@@ -192,6 +199,11 @@
         if (!session) return document.getElementById('formulaInput').value;
         const {parts,field,values,dirty} = session;
         return combine(parts,field.value,values,dirty);
+    }
+    function syncAdvancedInput() {
+        const source = value();
+        document.getElementById('formulaInput').value = source;
+        if (session) session.advancedSource = source;
     }
     function initialize() {
         if (!root.MathfieldElement) return;
@@ -203,10 +215,22 @@
         field.addEventListener('input',()=> {
             if (!session) return;
             session.dirty = true; session.advanced = false;
-            try { document.getElementById('formulaInput').value = value(); } catch (_) { /* Commit reports row validation. */ }
+            try { syncAdvancedInput(); } catch (_) { /* Commit reports row validation. */ }
         });
         document.getElementById('formulaInput').addEventListener('input',()=> {
             if (!session) return;
+            try {
+                session.parts.metadata.forEach((entry,i) => {
+                    const next = session.values[i];
+                    if (entry.kind !== 'comment' && next !== undefined && next !== entry.value) validateValue(entry.kind,next);
+                });
+            } catch (problem) {
+                // Do not replace unsaved invalid fields with an older source
+                // snapshot. Let the user correct them before changing views.
+                document.getElementById('formulaInput').value = session.advancedSource;
+                document.getElementById('formulaError').textContent = problem.message + ' 请先修正标签或编号，再编辑高级输入。';
+                return;
+            }
             const source=document.getElementById('formulaInput').value;
             open(source,session.node,false);
             session.advanced=true;

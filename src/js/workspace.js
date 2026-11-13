@@ -115,6 +115,54 @@ function workspaceFile(path, bytes) {
     return {path, kind: 'binary', base64: btoa(binary)};
 }
 
+function workspaceArchiveFiles(entries, fileTypes) {
+    // Overrides are [index, type, byteLength, pathCRC32, contentCRC32]. Binding
+    // them to both path and bytes makes stale comments from external repacking
+    // harmless; indexes avoid repeating up to 500 long paths in a 64 KiB comment.
+    const types = new Map();
+    const uint32 = value => Number.isInteger(value) && value >= 0 && value <= 0xffffffff;
+    if (Array.isArray(fileTypes) && fileTypes.length <= ProjectModel.MAX_FILES) {
+        for (const record of fileTypes) {
+            if (!Array.isArray(record) || record.length !== 5 || !Number.isInteger(record[0]) ||
+                record[0] < 0 || record[0] >= entries.length || types.has(record[0]) ||
+                !['utf-8', 'latin1', 'binary'].includes(record[1]) ||
+                !Number.isInteger(record[2]) || record[2] < 0 || record[2] > ProjectModel.MAX_TOTAL_BYTES ||
+                !uint32(record[3]) || !uint32(record[4])) {
+                types.clear();
+                break;
+            }
+            types.set(record[0], record);
+        }
+    }
+    return entries.map(({path, bytes}, index) => {
+        const detected = workspaceFile(path, bytes);
+        const record = types.get(index);
+        if (!record || record[2] !== bytes.length ||
+            record[3] !== ProjectArchive.crc32(new TextEncoder().encode(path)) ||
+            record[4] !== ProjectArchive.crc32(bytes)) return detected;
+        let restored;
+        try {
+            if (record[1] === 'binary') {
+                let binary = '';
+                for (let i = 0; i < bytes.length; i += 8192) binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
+                restored = {path, kind: 'binary', base64: btoa(binary)};
+            } else {
+                let text;
+                if (record[1] === 'utf-8') text = new TextDecoder('utf-8', {fatal: true, ignoreBOM: true}).decode(bytes);
+                else {
+                    text = '';
+                    for (let i = 0; i < bytes.length; i += 8192) text += String.fromCharCode(...bytes.subarray(i, i + 8192));
+                }
+                restored = {path, kind: 'text', text, encoding: record[1]};
+            }
+            // Metadata is a hint, never permission for lossy decoding.
+            const encoded = workspaceBytes(restored);
+            if (encoded.length === bytes.length && encoded.every((byte, offset) => byte === bytes[offset])) return restored;
+        } catch (_) { /* Invalid text metadata falls back to normal byte detection. */ }
+        return detected;
+    });
+}
+
 // Locate the clicked protected token within its own source unit, not the first
 // identical citation elsewhere in the document. Offsets match textarea newlines.
 function locateWorkspaceToken(editor, target, source) {
@@ -275,10 +323,20 @@ class WorkspaceController {
         this.sync();
         return this.model.list().map(file => ({path: file.path, bytes: workspaceBytes(file)}));
     }
-    exportComment() {
+    exportComment(entries = this.exportEntries()) {
         // ZIP comments keep project settings out of the user's file namespace.
-        return JSON.stringify({format: 'visual-workspace', version: 1, name: this.model.name,
-            mainPath: this.model.mainPath, activePath: this.model.activePath});
+        const metadata = {format: 'visual-workspace', version: 1, name: this.model.name,
+            mainPath: this.model.mainPath, activePath: this.model.activePath};
+        const fileTypes = [];
+        this.model.list().forEach((file, index) => {
+            const bytes = entries[index].bytes;
+            const detected = workspaceFile(file.path, bytes);
+            if (detected.kind === file.kind && detected.encoding === file.encoding) return;
+            fileTypes.push([index, file.kind === 'binary' ? 'binary' : file.encoding, bytes.length,
+                ProjectArchive.crc32(new TextEncoder().encode(file.path)), ProjectArchive.crc32(bytes)]);
+        });
+        if (fileTypes.length) metadata.fileTypes = fileTypes;
+        return JSON.stringify(metadata);
     }
 }
 
@@ -583,7 +641,8 @@ function initWorkspace() {
     }
     bind('btnDownload', () => { app.sync(); const file = app.model.get(); if (file) download(workspaceBytes(file), file.path.split('/').pop()); });
     bind('btnExportProject', () => {
-        const bytes = ProjectArchive.writeZip(app.exportEntries(), {comment: app.exportComment()});
+        const entries = app.exportEntries();
+        const bytes = ProjectArchive.writeZip(entries, {comment: app.exportComment(entries)});
         download(bytes, (app.model.name || 'project').replace(/[\\/:*?"<>|]/g, '_') + '.zip', 'application/zip');
         notify('项目 ZIP 已导出，包含所有源码和资源文件');
     });
@@ -619,8 +678,17 @@ function initWorkspace() {
         return entries;
     }
     $('importFiles').addEventListener('change', safely(async event => {
+        const project = app.model;
         app.sync();
-        const entries = await readFiles(Array.from(event.target.files), false);
+        let entries;
+        try { entries = await readFiles(Array.from(event.target.files), false); }
+        catch (error) {
+            if (app.model === project) throw error;
+            return;
+        }
+        // A project replacement invalidates pending imports, including failures.
+        // Neither files nor status from the old project belong in the new one.
+        if (app.model !== project) return;
         // Reading files is asynchronous: retain any edits made while waiting.
         // addMany validates the full batch atomically and preserves undo history.
         app.sync();
@@ -652,7 +720,7 @@ function initWorkspace() {
                 if (value && value.format === 'visual-workspace' && value.version === 1 &&
                     typeof value.name === 'string' && value.name.trim() && value.name.length <= 200) metadata = value;
             } catch (_) { /* ZIP comments from other tools are not project metadata. */ }
-            const files = archive.files.map(entry => workspaceFile(entry.path, entry.bytes));
+            const files = workspaceArchiveFiles(archive.files, metadata?.fileTypes);
             const main = files.find(item => item.kind === 'text' && item.path === 'main.tex') || files.find(item => item.kind === 'text' && /\.(tex|ps|eps)$/i.test(item.path)) || files.find(item => item.kind === 'text');
             const first = main || files[0];
             candidate = new ProjectModel({name: metadata ? metadata.name : file.name.replace(/\.zip$/i, ''), files,

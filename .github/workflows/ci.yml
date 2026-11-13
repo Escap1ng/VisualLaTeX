@@ -8,7 +8,10 @@ on:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -16,6 +19,7 @@ jobs:
           node-version: '22'
 
       - name: JS 语法检查
+        shell: bash
         run: |
           for file in src/js/main.js src/js/workspace.js src/js/project-model.js src/js/project-archive.js src/js/preview.js src/js/visual-math.js src/js/visual-references.js src/js/visual-references-ui.js vendor/mathlive/mathlive.min.js server/compiler.mjs server/pdf-preview.mjs server/server.mjs; do
             node --check "$file"

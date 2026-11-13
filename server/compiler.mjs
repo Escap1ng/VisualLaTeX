@@ -237,7 +237,14 @@ export async function compileProject(project, options = {}) {
             }
             if (/\.eps$/i.test(mainFile)) args.push('-dEPSCrop');
             args.push('-f', portable(mainFile));
-            await run(engine.executable, args);
+            // Ghostscript @files avoid the Windows command-line limit without
+            // widening the per-file grants. Its parser accepts double quotes and
+            // escaped quotes, not JSON/shell backslash escapes. All paths above
+            // use forward slashes; finish each quoted argument with whitespace.
+            const argumentFile = path.join(jobDirectory, 'ghostscript.args');
+            await writeFile(argumentFile, args.map(arg => '"' + arg.replace(/"/g, '\\"') + '"\n').join(''),
+                {encoding: 'utf8', flag: 'wx'});
+            await run(engine.executable, ['@' + portable(argumentFile)]);
         } else if (engine.engine === 'tectonic') {
             output = path.join(outputDirectory, path.parse(mainFile).name + '.pdf');
             let tectonicError;

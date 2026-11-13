@@ -25,6 +25,33 @@ function emitPdf(args, options) {
     return writeFile(target, pdf);
 }
 
+// Independently decode the quoted arguments accepted by Ghostscript @files.
+// Unlike JSON or a shell, only backslash-double-quote is an escape here.
+function parseResponseArguments(contents) {
+    const args = [];
+    let token = '', quoted = false, started = false;
+    for (let i = 0; i < contents.length; i++) {
+        const character = contents[i];
+        if (character === '\\' && contents[i + 1] === '"') { token += '"'; i++; started = true; }
+        else if (character === '"') { quoted = !quoted; started = true; }
+        else if (/[ \t\r\n\f\v]/.test(character) && !quoted) {
+            if (started) args.push(token);
+            token = ''; started = false;
+        } else { token += character; started = true; }
+    }
+    if (quoted) throw new Error('Unterminated response-file quote');
+    if (started) args.push(token);
+    return args;
+}
+async function expandGhostscriptArguments(args) {
+    const expanded = [];
+    for (const arg of args) {
+        if (arg.startsWith('@')) expanded.push(...parseResponseArguments(await readFile(arg.slice(1), 'utf8')));
+        else expanded.push(arg);
+    }
+    return expanded;
+}
+
 test('engine discovery uses explicit executable paths and reports missing engines', async t => {
     const directory = await root(t);
     const binary = path.join(directory, 'engine with spaces' + (process.platform === 'win32' ? '.exe' : ''));
@@ -95,6 +122,7 @@ test('PS and binary EPS render through Ghostscript pdfwrite with SAFER and appro
         const result = await compileProject({...project([source]), mainPath: null}, {kind: 'postscript', mainPath: source.path, engines, temporaryParent,
             runner: async (command, args, options) => {
                 assert.equal(command, engines.postscript.executable);
+                args = await expandGhostscriptArguments(args);
                 for (const flag of ['-dSAFER', '-dBATCH', '-dNOPAUSE', '-sDEVICE=pdfwrite', '-f']) assert.ok(args.includes(flag));
                 assert.equal(args.includes('-dEPSCrop'), extension === 'eps');
                 assert.ok(args.some(arg => arg.startsWith('--permit-file-read=')));
@@ -113,6 +141,7 @@ test('PostScript permits staged resources by relative filename without granting 
     const temporaryParent = await root(t);
     await compileProject(project([text('drawing.ps', '(parts/shared.ps) run'), text('parts/shared.ps', 'showpage')]), {
         kind: 'postscript', engines, temporaryParent, runner: async (_, args, options) => {
+            args = await expandGhostscriptArguments(args);
             assert.ok(args.includes('--permit-file-read=parts/shared.ps'));
             assert.ok(args.includes('--permit-file-read=./parts/shared.ps'));
             assert.ok(!args.includes('--permit-file-read=*'));
@@ -125,6 +154,92 @@ test('PostScript permits staged resources by relative filename without granting 
         kind: 'postscript', engines, temporaryParent, runner: async () => { invoked = true; }
     }));
     assert.equal(invoked, false, 'a filename cannot add an extra Ghostscript permission');
+});
+
+test('a maximum-file PostScript project starts a real subprocess with bounded arguments and all resource permissions', async t => {
+    const temporaryParent = await root(t);
+    const probe = path.join(temporaryParent, 'mock ghostscript.mjs');
+    await writeFile(probe, `import {readFile, writeFile} from 'node:fs/promises';
+${parseResponseArguments.toString()}
+${expandGhostscriptArguments.toString()}
+const args = await expandGhostscriptArguments(process.argv.slice(2));
+const output = args.find(arg => arg.startsWith('-sOutputFile=')).slice('-sOutputFile='.length);
+await writeFile(output, '%PDF-1.7\\nfixture\\n%%EOF');
+process.stdout.write(JSON.stringify(args));
+`);
+    const files = [text('docs/drawing.ps', 'showpage')];
+    for (let i = 0; i < 499; i++) files.push(text('assets/resource-' + i + '-' + 'x'.repeat(130) + '.txt', 'resource'));
+    let commandLength;
+    const result = await compileProject(project(files), {kind: 'postscript', engines, temporaryParent,
+        runner: async (_, args, options) => {
+            // The old per-file argv exceeds CreateProcess's limit on Windows.
+            const native = await runProcess(process.execPath, [probe, ...args], options);
+            assert.equal(native.code, 0, native.log);
+            commandLength = [process.execPath, probe, ...args].join(' ').length;
+            assert.ok(commandLength < 4096, 'the native command must not grow with project file count');
+            const expanded = JSON.parse(native.log);
+            assert.ok(expanded.includes('-dSAFER'));
+            assert.ok(!expanded.includes('-dNOSAFER'));
+            assert.ok(!expanded.includes('--permit-file-read=*'));
+            const readGrants = expanded.filter(arg => arg.startsWith('--permit-file-read='));
+            assert.equal(readGrants.length, 1 + 2 * files.length);
+            for (const file of files) {
+                const relative = path.relative(options.cwd, path.join(options.sourceDirectory, file.path)).replace(/\\/g, '/');
+                assert.ok(readGrants.includes('--permit-file-read=' + relative), file.path);
+                assert.ok(readGrants.includes('--permit-file-read=./' + relative), file.path);
+            }
+            return {...native, log: 'Real subprocess started'};
+        }});
+    assert.deepEqual(result.pdf, pdf);
+    assert.deepEqual(await readdir(temporaryParent), ['mock ghostscript.mjs'], 'staged files and argument file are removed');
+});
+
+test('PostScript argument files preserve special paths without adding switches or permitting extra files', async t => {
+    const directory = await root(t);
+    const temporaryParent = path.join(directory, "参数 # @ O'Brien");
+    await mkdir(temporaryParent);
+    const files = [text('docs/图形 main.eps', '%!PS\nshowpage'), text("assets/O'Brien # @ -dNOSAFER.ps", 'resource'),
+        text('assets/@extra.args', '-dNOSAFER'), text('assets/-dNOSAFER', 'resource'), text('assets/space\u00a0name.ps', 'resource')];
+    await compileProject(project(files), {kind: 'postscript', engines, temporaryParent,
+        runner: async (_, args, options) => {
+            assert.equal(args.length, 1);
+            assert.ok(args[0].startsWith('@'));
+            assert.equal(path.dirname(path.resolve(args[0].slice(1))), path.dirname(options.sourceDirectory), 'arguments stay outside user project files');
+            const expanded = await expandGhostscriptArguments(args);
+            assert.ok(expanded.includes('-dSAFER'));
+            assert.ok(expanded.includes('-dEPSCrop'));
+            assert.ok(!expanded.includes('-dNOSAFER'));
+            assert.ok(!expanded.some(arg => arg.startsWith('@')));
+            assert.deepEqual(expanded.slice(-2), ['-f', path.join(options.sourceDirectory, files[0].path).replace(/\\/g, '/')]);
+            const grants = expanded.filter(arg => arg.startsWith('--permit-file-read='));
+            assert.deepEqual(grants, [
+                '--permit-file-read=' + options.sourceDirectory.replace(/\\/g, '/') + '/*',
+                ...files.flatMap(file => {
+                    const relative = path.relative(options.cwd, path.join(options.sourceDirectory, file.path)).replace(/\\/g, '/');
+                    return ['--permit-file-read=' + relative, '--permit-file-read=./' + relative];
+                })
+            ]);
+            await emitPdf(expanded, options);
+            return {code: 0};
+        }});
+    assert.deepEqual(await readdir(temporaryParent), []);
+});
+
+test('PostScript argument files are cleaned after engine failure and cancellation', async t => {
+    const temporaryParent = await root(t);
+    for (const cancelled of [false, true]) {
+        const controller = new AbortController();
+        await assert.rejects(compileProject(project([text('drawing.ps', 'showpage')]), {
+            kind: 'postscript', engines, temporaryParent, signal: controller.signal,
+            runner: async (_, args) => {
+                assert.equal(args.length, 1);
+                await access(args[0].slice(1));
+                if (cancelled) controller.abort();
+                return {code: 1, log: 'Engine failed'};
+            }
+        }), {code: cancelled ? 'CANCELLED' : 'COMPILE_FAILED'});
+        assert.deepEqual(await readdir(temporaryParent), []);
+    }
 });
 
 test('Tectonic Biber projects never return a PDF with incomplete bibliography as success', async t => {
@@ -150,7 +265,7 @@ test('filesystem-unsafe paths, directory collisions and wrong main kinds are rej
     for (const file of ['../escape.tex', 'C:/escape.tex', 'NUL.tex', 'trailing. /main.tex', 'dir*/main.tex']) {
         await assert.rejects(compileProject(project([text(file, 'text')]), options));
     }
-    await assert.rejects(compileProject(project([text('main.tex', 'x'), text('dir', 'file'), text('dir/child.tex', 'child')]), options), {code: 'INVALID_PATH'});
+    await assert.rejects(compileProject(project([text('main.tex', 'x'), text('dir', 'file'), text('dir/child.tex', 'child')]), options), {code: 'INVALID_PROJECT'});
     await assert.rejects(compileProject(project([text('notes.txt', 'x')]), options), {code: 'INVALID_MAIN'});
     await assert.rejects(compileProject(project([text('main.tex', 'x')]), {...options, kind: 'postscript'}), {code: 'INVALID_MAIN'});
     assert.equal(calls, 0);
