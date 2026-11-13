@@ -248,3 +248,52 @@ test('formula labels in the reference sidebar open their formula editor while re
     assert.doesNotMatch(f.app.model.get().text, /eq:second/);
     assert.equal(f.app.mode, 'visual');
 });
+
+test('metadata edits stay synchronized before subsequent advanced mathematical edits', async () => {
+    const f = await visual(String.raw`\begin{equation}x=1\label{eq:old}\tag{A 1}\end{equation}`);
+    await open(f);
+    const fields = f.node('formulaMetadata').querySelectorAll('input');
+    fields[0].value = 'eq:new'; await f.emit(fields[0], 'input');
+    fields[1].value = 'B 2'; await f.emit(fields[1], 'input');
+    assert.equal(f.node('formulaInput').value, String.raw`x=1\label{eq:new}\tag{B 2}`);
+    await f.input('formulaInput', f.node('formulaInput').value.replace('x=1', 'x=2'));
+    await f.click('btnInsertFormula');
+    assert.equal(formula(f).getAttribute('data-formula'), String.raw`x=2\label{eq:new}\tag{B 2}`);
+    assert.match(f.app.model.get().text, /x=2\\label\{eq:new\}\\tag\{B 2\}/);
+    assert.doesNotMatch(f.app.model.get().text, /eq:old|A 1/);
+});
+
+test('cleared metadata stays removed when switching from graphical to advanced editing', async () => {
+    const f = await visual(String.raw`$x=1\label{eq:old}\tag{A}$`);
+    await open(f);
+    f.node('formulaMathField').value = 'x=2';
+    await f.emit(f.node('formulaMathField'), 'input');
+    for (const field of f.node('formulaMetadata').querySelectorAll('input')) {
+        field.value = ''; await f.emit(field, 'input');
+    }
+    assert.equal(f.node('formulaInput').value, 'x=2');
+    await f.input('formulaInput', f.node('formulaInput').value + '+1');
+    await f.click('btnInsertFormula');
+    assert.equal(formula(f).getAttribute('data-formula'), 'x=2+1');
+    assert.doesNotMatch(f.app.model.get().text, /\\label|\\tag/);
+});
+
+test('invalid metadata cannot be silently discarded by an advanced edit', async () => {
+    const f = await visual(String.raw`$x=1\label{eq:old}\tag{A}$`);
+    const original = f.app.model.get().text;
+    await open(f);
+    const fields = f.node('formulaMetadata').querySelectorAll('input');
+    fields[1].value = 'B%'; await f.emit(fields[1], 'input');
+    fields[0].value = ''; await f.emit(fields[0], 'input');
+    await f.input('formulaInput', f.node('formulaInput').value.replace('x=1', 'x=2'));
+    await f.click('btnInsertFormula');
+    assert.equal(f.app.model.get().text, original);
+    assert.equal(f.node('formulaModal').classList.contains('show'), true);
+    assert.ok(f.node('formulaError').textContent);
+    assert.equal(f.node('formulaMetadata').querySelectorAll('input')[0].value, '');
+    assert.equal(f.node('formulaMetadata').querySelectorAll('input')[1].value, 'B%');
+    fields[1].value = 'B'; await f.emit(fields[1], 'input');
+    await f.input('formulaInput', f.node('formulaInput').value.replace('x=1', 'x=2'));
+    await f.click('btnInsertFormula');
+    assert.equal(formula(f).getAttribute('data-formula'), String.raw`x=2\tag{B}`);
+});

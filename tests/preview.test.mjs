@@ -59,6 +59,66 @@ test('file mode makes no requests and explains how to enable local compilation',
     assert.equal(f.calls.length, 0);
 });
 
+test('late reconnect success or failure cannot interrupt a running compilation', async () => {
+    for (const status of [200, 503]) {
+        const reconnect = deferred(), progress = deferred(), polling = deferred();
+        let statusRequests = 0;
+        const f = fixture({route: async (url, init) => {
+            if (url === '/api/status' && ++statusRequests > 1) return reconnect.promise;
+            if (url === '/api/jobs/job-1' && init.method !== 'DELETE') { polling.resolve(); return progress.promise; }
+        }});
+        await f.controller.connect();
+        const connecting = f.controller.connect();
+        const compiling = f.controller.compile();
+        await polling.promise;
+        reconnect.resolve(status === 200 ? json({token: 'late-token', engines}) : json({error: 'Disconnected'}, status));
+        assert.equal(await connecting, false);
+        assert.equal(f.controller.busy, true);
+        assert.equal(f.controller.token, 'test-token');
+        assert.equal(await f.controller.compile(), false, 'a second compile remains blocked');
+        assert.equal(f.calls.filter(call => call.url === '/api/compile').length, 1);
+        progress.resolve(json({state: 'succeeded', pdfUrl: '/api/jobs/job-1/pdf'}));
+        assert.equal(await compiling, true, 'the original result still reaches the preview');
+        f.controller.destroy();
+    }
+});
+
+test('a newer connection wins over an older response or error', async () => {
+    for (const status of [200, 503]) {
+        const older = deferred();
+        let requests = 0;
+        const f = fixture({route: async url => {
+            if (url === '/api/status') return ++requests === 1 ? older.promise : json({token: 'new-token', engines});
+        }});
+        const pending = f.controller.connect();
+        assert.equal(await f.controller.connect(), true);
+        older.resolve(status === 200 ? json({token: 'old-token', engines: {}}) : json({error: 'Old request failed'}, status));
+        assert.equal(await pending, false);
+        assert.equal(f.controller.token, 'new-token');
+        assert.equal(f.controller.engines.latex.available, true);
+        assert.equal(f.controller.phase, 'idle');
+        f.controller.destroy();
+    }
+});
+
+test('clearing or destroying a controller invalidates pending connection replies', async () => {
+    for (const action of ['clear', 'destroy']) {
+        for (const status of [200, 503]) {
+            const response = deferred();
+            const f = fixture({route: async url => url === '/api/status' ? response.promise : undefined});
+            const connecting = f.controller.connect();
+            f.controller[action]();
+            const phase = f.controller.phase, message = f.controller.message;
+            response.resolve(status === 200 ? json({token: 'late-token', engines}) : json({error: 'Late failure'}, status));
+            assert.equal(await connecting, false);
+            assert.equal(f.controller.token, null);
+            assert.equal(f.controller.phase, phase);
+            assert.equal(f.controller.message, message);
+            f.controller.destroy();
+        }
+    }
+});
+
 test('successful compilation sends an immutable project snapshot and exports the current PDF', async () => {
     const f = fixture();
     const original = structuredClone(f.request);
@@ -152,9 +212,13 @@ test('cancellation before POST resolves deletes a late job id without starting a
     await f.controller.connect();
     const running = f.controller.compile();
     await ready.promise;
-    await f.controller.cancel();
+    const cancelling = f.controller.cancel();
+    assert.equal(f.controller.busy, true, 'wait for the submission and cancellation acknowledgement');
+    assert.equal(await f.controller.compile(), false, 'do not race a new job against pending cancellation');
     response.resolve(json({id: 'late-job'}, 202));
+    await cancelling;
     assert.equal(await running, false);
+    assert.equal(f.controller.busy, false);
     assert.ok(f.calls.some(call => call.url === '/api/jobs/late-job' && call.init.method === 'DELETE'));
     assert.equal(f.created.length, 0);
 });

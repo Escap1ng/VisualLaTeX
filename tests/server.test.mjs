@@ -125,9 +125,14 @@ test('only one job runs at once and cancellation cannot be overwritten by a late
     const f = await fixture(t, {compiler: (_project, settings) => { signal = settings.signal; return new Promise(resolve => { finish = resolve; }); }});
     const {id} = await (await f.compile()).json();
     assert.equal((await f.compile()).status, 409);
-    assert.equal((await f.call('/api/jobs/' + id, {method: 'DELETE'})).status, 200);
+    let acknowledged = false;
+    const aborted = new Promise(resolve => signal.addEventListener('abort', resolve, {once: true}));
+    const cancelling = f.call('/api/jobs/' + id, {method: 'DELETE'}).then(response => { acknowledged = true; return response; });
+    await aborted;
     assert.equal(signal.aborted, true);
+    assert.equal(acknowledged, false, 'wait for the engine to release the compiler slot');
     finish({pdf: PDF, log: 'late', engine: 'tectonic'});
+    assert.equal((await cancelling).status, 200);
     assert.equal((await f.completed(id)).state, 'cancelled');
     assert.equal((await f.call('/api/jobs/' + id + '/pdf')).status, 409);
 });

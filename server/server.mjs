@@ -162,7 +162,7 @@ export function createWorkspaceServer({
                         if (!delivered && job.active) { job.state = 'cancelled'; job.controller.abort(); }
                     });
                     json(202, {id: job.id});
-                    Promise.resolve().then(async () => {
+                    job.completion = Promise.resolve().then(async () => {
                         const engines = await getEngines();
                         if (job.controller.signal.aborted) return;
                         const result = await compiler(payload.project, {kind: payload.kind, mainPath: payload.mainPath, signal: job.controller.signal, engines});
@@ -185,6 +185,9 @@ export function createWorkspaceServer({
                     if (previewActive?.job === job) previewActive.controller.abort();
                     if (job.active) {
                         job.state = 'cancelled'; job.controller.abort();
+                        // Acknowledging cancellation also means the compiler slot is
+                        // free; process termination and temporary-file cleanup can lag abort.
+                        await job.completion;
                     }
                     json(200, {id: job.id, state: job.state});
                     return;

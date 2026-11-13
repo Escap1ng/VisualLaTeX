@@ -41,7 +41,10 @@
             this.result = null;
             this.stale = false;
             this.generation = 0;
+            this.connectionGeneration = 0;
             this.jobId = null;
+            this.submission = null;
+            this.cancellation = null;
             this.abort = null;
             this.disposed = false;
             this.preview = {state: 'empty', message: '', url: null, key: null, targetKey: null, page: 0, pageCount: 0, maxPages: 100};
@@ -49,7 +52,7 @@
             this.previewAbort = null;
             this.previewTask = Promise.resolve(false);
         }
-        get busy() { return this.phase === 'running'; }
+        get busy() { return this.phase === 'running' || Boolean(this.cancellation); }
         emit() { if (!this.disposed) this.onChange(this); }
         async responseJson(response) {
             let body;
@@ -60,6 +63,8 @@
         headers() { return {'X-VisualLaTeX-Token': this.token}; }
         async connect() {
             if (this.busy || this.disposed) return false;
+            const connection = ++this.connectionGeneration, generation = this.generation;
+            const current = () => !this.disposed && !this.busy && generation === this.generation && connection === this.connectionGeneration;
             if (this.protocol !== 'http:' && this.protocol !== 'https:') {
                 this.phase = 'unavailable';
                 this.message = '编译预览需要本机服务：在项目目录运行 node server/server.mjs，再打开终端显示的网址。';
@@ -67,6 +72,7 @@
             }
             try {
                 const body = await this.responseJson(await this.fetch('/api/status', {credentials: 'same-origin', cache: 'no-store'}));
+                if (!current()) return false;
                 if (!body.token || !body.engines) throw new Error('当前页面没有连接到 VisualLaTeX 编译服务。');
                 this.token = body.token;
                 this.engines = body.engines;
@@ -74,6 +80,7 @@
                 this.message = '选择主文件后编译；项目文件仅发送到本机服务。';
                 this.emit(); return true;
             } catch (error) {
+                if (!current()) return false;
                 this.token = null;
                 this.phase = 'unavailable';
                 this.message = '无法连接编译服务。请运行 node server/server.mjs 并打开终端网址。' + error.message;
@@ -88,21 +95,37 @@
             this.emit();
         }
         fresh(request) { return Boolean(this.result && this.result.key === requestKey(request)); }
-        async deleteJob(id) {
-            if (!id || !this.token) return;
-            try { await this.fetch('/api/jobs/' + encodeURIComponent(id), {method: 'DELETE', headers: this.headers(), credentials: 'same-origin', keepalive: true}); }
+        async deleteJob(id, token = this.token) {
+            if (!id || !token) return;
+            try { await this.fetch('/api/jobs/' + encodeURIComponent(id), {method: 'DELETE', headers: {'X-VisualLaTeX-Token': token}, credentials: 'same-origin', keepalive: true}); }
             catch (_) { /* Server timeout/cleanup still bounds an unreachable job. */ }
         }
+        cancelSubmission(submission) {
+            return submission.cancellation ||= submission.promise.then(job => {
+                if (typeof job?.id === 'string' && /^[a-zA-Z0-9_-]+$/.test(job.id)) return this.deleteJob(job.id, submission.token);
+            }, () => {});
+        }
         async cancel() {
+            if (this.cancellation) return this.cancellation;
             const id = this.jobId;
-            this.generation++;
+            const submission = this.submission, wasBusy = this.busy;
+            const generation = ++this.generation;
             this.abort?.abort();
             this.abort = null;
             this.jobId = null;
             this.stopPreview();
-            if (this.busy) { this.phase = 'cancelled'; this.message = '已取消本次编译。'; }
+            if (wasBusy) { this.phase = 'cancelled'; this.message = '已取消本次编译。'; }
+            if (!submission && !id) { this.emit(); return; }
+            const cleanup = submission ? this.cancelSubmission(submission) : this.deleteJob(id);
+            this.cancellation = cleanup;
+            if (wasBusy) { this.phase = 'cancelling'; this.message = '正在取消本次编译…'; }
             this.emit();
-            await this.deleteJob(id);
+            try { await cleanup; }
+            finally {
+                if (this.cancellation === cleanup) this.cancellation = null;
+                if (wasBusy && generation === this.generation) { this.phase = 'cancelled'; this.message = '已取消本次编译。'; }
+                this.emit();
+            }
         }
         clear() {
             this.cancel();
@@ -215,14 +238,19 @@
             this.message = request.kind === 'postscript' ? '正在渲染 PostScript…' : '正在编译 LaTeX…';
             this.log = '';
             this.emit();
-            let job;
+            if (generation !== this.generation) return false;
+            let job, submission;
             try {
-                job = await this.responseJson(await this.fetch('/api/compile', {
+                // Keep the creation response readable after cancellation: otherwise
+                // a server job can start before fetch exposes the id needed to delete it.
+                submission = {token: this.token, promise: this.fetch('/api/compile', {
                     method: 'POST', headers: {...this.headers(), 'Content-Type': 'application/json'},
-                    credentials: 'same-origin', body: JSON.stringify(request), signal: abort.signal
-                }));
+                    credentials: 'same-origin', body: JSON.stringify(request)
+                }).then(response => this.responseJson(response))};
+                this.submission = submission;
+                job = await submission.promise;
                 if (typeof job.id !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(job.id)) throw new Error('编译服务返回的任务编号无效。');
-                if (generation !== this.generation) { await this.deleteJob(job.id); return false; }
+                if (generation !== this.generation) { await this.cancelSubmission(submission); return false; }
                 this.jobId = job.id;
                 const started = Date.now();
                 for (;;) {
@@ -273,9 +301,10 @@
                 // A failed polling/download request does not stop the engine.
                 // Release the known job before discarding its id, while keeping
                 // the original error visible if cleanup itself cannot connect.
-                await this.deleteJob(job?.id);
+                if (submission) await this.cancelSubmission(submission);
                 return false;
             } finally {
+                if (this.submission === submission) this.submission = null;
                 if (generation === this.generation) { this.abort = null; this.jobId = null; }
             }
         }

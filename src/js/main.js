@@ -229,6 +229,15 @@ function insertBlockFormula() {
     openFormulaModal('block');
 }
 
+// 标签是引用标识符，不能用正文转义规则改写下划线等合法字符。
+function normalizeImageLabel(value) {
+    const label = String(value ?? '').trim();
+    if (/[\\{}\[\],%#$&^~*\s\u0000-\u001f\u007f]/.test(label)) {
+        throw new Error('图片标签不能包含空白、括号、反斜杠或 LaTeX 控制字符');
+    }
+    return label;
+}
+
 // 插入图片
 function insertImage(options) {
     const supplied = options && typeof options.imagePath === 'string';
@@ -237,8 +246,10 @@ function insertImage(options) {
     if (!imagePath) return;
     const caption = supplied ? options.caption : prompt('请输入图片标题：', '图片标题');
     if (caption === null) return;
-    const label = supplied ? options.label : prompt('请输入图片标签（用于引用）：', 'fig:example');
+    let label = supplied ? options.label : prompt('请输入图片标签（用于引用）：', 'fig:example');
     if (label === null) return;
+    try { label = normalizeImageLabel(label); }
+    catch (error) { updateStatus(error.message); return; }
 
     const img = document.createElement('img');
     img.src = imagePath;
@@ -1002,7 +1013,8 @@ function convertNodeToLatex(node) {
         case 'img': {
             const imgPath = node.getAttribute('src') || '';
             const caption = node.getAttribute('data-caption');
-            const label = node.getAttribute('data-label');
+            const rawLabel = node.getAttribute('data-label');
+            const label = node.getAttribute('data-label-tex') === 'true' ? rawLabel : normalizeImageLabel(rawLabel);
             const width = node.getAttribute('data-width');
             const placement = node.getAttribute('data-placement');
             latex = '\\begin{figure}' + (placement === '' ? '' : '[' + (placement || 'htbp') + ']') + '\n';
@@ -1012,7 +1024,7 @@ function convertNodeToLatex(node) {
             if (caption || node.getAttribute('data-has-caption') === 'true') {
                 latex += '    \\caption{' + (node.getAttribute('data-caption-tex') === 'true' ? caption || '' : escapeLatex(caption || '')) + '}\n';
             }
-            if (label) latex += '    \\label{' + (node.getAttribute('data-label-tex') === 'true' ? label : escapeLatex(label)) + '}\n';
+            if (label) latex += '    \\label{' + label + '}\n';
             latex += '\\end{figure}' + separator;
             break;
         }
