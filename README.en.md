@@ -1,5 +1,8 @@
 <p align="center">
-  <img src="assets/readme-hero.svg" alt="VisualLaTeX Studio" width="100%">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/readme-hero-dark.svg">
+    <img src="assets/readme-hero-light.svg" alt="VisualLaTeX Studio" width="100%">
+  </picture>
 </p>
 
 <h1 align="center">VisualLaTeX Studio</h1>
@@ -13,9 +16,9 @@
   <a href="https://github.com/Escap1ng/VisualLaTeX/releases"><img alt="Release" src="https://img.shields.io/github/v/release/Escap1ng/VisualLaTeX?style=flat-square&amp;labelColor=111216&amp;color=16a36a"></a>
   <a href="https://github.com/Escap1ng/VisualLaTeX/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/Escap1ng/VisualLaTeX/ci.yml?branch=main&amp;label=ci&amp;style=flat-square&amp;labelColor=111216&amp;color=16a36a"></a>
   <a href="https://github.com/Escap1ng/VisualLaTeX/actions/workflows/deploy-pages.yml"><img alt="Pages" src="https://img.shields.io/github/actions/workflow/status/Escap1ng/VisualLaTeX/deploy-pages.yml?branch=main&amp;label=pages&amp;style=flat-square&amp;labelColor=111216&amp;color=16a36a"></a>
-  <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/Escap1ng/VisualLaTeX?style=flat-square&amp;labelColor=111216&amp;color=16a36a"></a>
   <img alt="Node.js 22+" src="https://img.shields.io/badge/Node.js-22%2B-16a36a?style=flat-square&amp;labelColor=111216">
   <img alt="Platform" src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-16a36a?style=flat-square&amp;labelColor=111216">
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/Escap1ng/VisualLaTeX?style=flat-square&amp;labelColor=111216&amp;color=16a36a"></a>
 </p>
 
 <p align="center">
