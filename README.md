@@ -1,18 +1,56 @@
-# VisualLaTeX Studio
+<p align="center">
+  <img src="assets/readme-hero.svg" alt="VisualLaTeX Studio" width="100%">
+</p>
 
-**导入文档，直接可视化修改，再导出——支持多文件、PostScript 与本机 PDF 编译。**
+<h1 align="center">VisualLaTeX Studio</h1>
 
-界面以文稿为中心：宽屏合并工具与编译操作，统一图标、纸面排版和编辑弹窗；公式确认按钮固定在弹窗底部。
+<p align="center">
+  <i>Vide quod scripsisti.</i><br>
+  在现有 LaTeX 文档上直接可视化编辑，本机编译并导出 PDF。
+</p>
 
-![VisualLaTeX Studio](screenshots/studio-workspace.jpg)
+<p align="center">
+  <a href="https://github.com/Escap1ng/VisualLaTeX/releases"><img alt="Release" src="https://img.shields.io/github/v/release/Escap1ng/VisualLaTeX?style=flat-square&amp;labelColor=111216&amp;color=16a36a"></a>
+  <a href="https://github.com/Escap1ng/VisualLaTeX/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/Escap1ng/VisualLaTeX/ci.yml?branch=main&amp;label=ci&amp;style=flat-square&amp;labelColor=111216&amp;color=16a36a"></a>
+  <a href="https://github.com/Escap1ng/VisualLaTeX/actions/workflows/deploy-pages.yml"><img alt="Pages" src="https://img.shields.io/github/actions/workflow/status/Escap1ng/VisualLaTeX/deploy-pages.yml?branch=main&amp;label=pages&amp;style=flat-square&amp;labelColor=111216&amp;color=16a36a"></a>
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/Escap1ng/VisualLaTeX?style=flat-square&amp;labelColor=111216&amp;color=16a36a"></a>
+  <img alt="Node.js 22+" src="https://img.shields.io/badge/Node.js-22%2B-16a36a?style=flat-square&amp;labelColor=111216">
+  <img alt="Platform" src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-16a36a?style=flat-square&amp;labelColor=111216">
+</p>
 
-VisualLaTeX Studio 延续可视化修改现有 LaTeX 文档的用途，并增加完整源码、多文件项目、参考文献、ZIP 管理及真实编译。公式编辑内置 MathLive 0.111.1（MIT）及其字体，无需 npm 安装或构建即可离线编辑；编译需要 Node.js 22+ 和相应工具链。静态页面与本地服务共用同一套前端；编译、PDF 预览与导出只在本机服务中提供。
+<p align="center">
+  <a href="README.en.md">English</a> · <strong>简体中文</strong>
+</p>
 
-**完整 LaTeX 文档默认进入「可视化编辑」。** 直接修改文字和标题，用工具栏调整格式；单击排版后的公式，使用图形输入框编辑分式、上下标等内容。引用和标签显示为可读条目，单击即可修改，无需切换源码。只修改需要改动的内容，保留其余源码；切换文件会记住当前会话中为各文件选择的编辑模式。
+<p align="center">
+  <a href="#概览">概览</a> ·
+  <a href="#快速开始">快速开始</a> ·
+  <a href="#能力">能力</a> ·
+  <a href="#开发与验证">开发</a> ·
+  <a href="#参与贡献">参与贡献</a> ·
+  <a href="#许可">许可</a>
+</p>
+
+---
+
+## 概览
+
+VisualLaTeX Studio 面向已有 LaTeX 文档：导入后直接修改文字、标题、格式与公式，保留完整源码、多文件结构、参考文献与 ZIP 资源，并可调用本机工具链完成真实编译和 PDF 导出。
+
+- **可视化优先**：文字、标题、列表、公式、引用与标签可直接点击修改，未改动的源码原样保留。
+- **两种运行方式**：静态页面专注编辑；本地服务增加 LaTeX / PostScript 编译、PDF 预览与导出。
+- **本机处理**：编译、预览和导出只在本机服务中执行，源码不上传第三方；公式编辑器及其字体随包离线加载。
+
+完整 LaTeX 文档默认进入「可视化编辑」。直接修改文字和标题，用工具栏调整格式；单击排版后的公式，使用图形输入框编辑分式、上下标等内容。引用和标签显示为可读条目，单击即可修改，无需切换源码。只修改需要改动的内容，切换文件会记住当前会话中为各文件选择的编辑模式。
 
 「源码编辑」随时可用，适合修改导言区、自定义宏和复杂结构。BibTeX、PostScript、章节片段及未完成的文档可直接编辑源码，并保存、导出；它们不会被强行转换成可视化内容。PostScript 当前支持源码编辑和渲染，不提供任意图形对象的可视化修改。
 
-## 开始使用
+<p align="center">
+  <img src="screenshots/studio-workspace.jpg" alt="VisualLaTeX Studio 工作台" width="100%">
+</p>
+<p align="center"><sub>工作台：左侧文件树，中间可视化文稿，右侧文档结构与引用索引。</sub></p>
+
+## 快速开始
 
 默认项目包含 `main.tex`、`references.bib` 和 `drawing.ps`。同一套前端支持两种运行方式：
 
@@ -50,7 +88,7 @@ node server/server.mjs
 
 Tectonic 首次编译会按需联网下载宏包和字体支持文件，之后可复用缓存；源码在本机编译，不上传到第三方。Windows 启动脚本将缓存放在 `.tools/cache`；也可设置 `TECTONIC_CACHE_DIR`。已有本机 TeX 发行版按其自身方式管理宏包与字体。
 
-### 编辑与生成 PDF
+## 编辑与导出
 
 1. 用「添加文件」加入文件，或用「打开文件夹」「打开项目」导入目录/ZIP。
 2. 从左侧选择 `main.tex` 等完整 LaTeX 文档，在「可视化编辑」中修改文字、标题和格式；单击公式、引用或标签直接编辑。自定义宏和复杂结构可切换到「源码编辑」修改，再返回可视化继续写作。
@@ -58,15 +96,15 @@ Tectonic 首次编译会按需联网下载宏包和字体支持文件，之后�
 4. 选择编译目标：LaTeX 使用完整的主文档，PostScript 使用 `.ps` / `.eps` 文件，点击编译/渲染或按 Ctrl/Cmd+Enter。
 5. 在预览区检查生成的 PDF，使用「导出 PDF」保存结果。PDF 预览只显示排版结果，修改内容仍在编辑区完成。编译失败可查看日志，也可取消运行中的任务。
 
-修改源码后，旧 PDF 会标记为过期；导出会先编译当前内容，避免将旧结果误当成最新版本。编译失败时保留上次预览，项目源码保持可编辑。本机安装 Ghostscript 后，预览以分页图片显示，不依赖浏览器自带 PDF 阅读器；可用「上一页」「下一页」切换。未安装 Ghostscript 时会明确提示，并尝试浏览器原生 PDF 预览，仍可导出完整 PDF。
+修改源码后，旧 PDF 会标记为过期；导出会先编译当前内容，避免将旧结果误当成最新版本。编译失败时保留上次预览，项目源码保持可编辑。
 
-图片预览最多显示前 100 页，每页固定为 1200×1600 的适配画布（保留整页比例），不影响原 PDF 的页面尺寸、矢量内容和全部页数。每页按需生成，默认最多等待 20 秒；失败可以重试。图片预览不提供文字选择，请在导出的 PDF 中复制文本。
+本机安装 Ghostscript 后，预览以分页图片显示，不依赖浏览器自带 PDF 阅读器；可用「上一页」「下一页」切换。未安装 Ghostscript 时会明确提示，并尝试浏览器原生 PDF 预览，仍可导出完整 PDF。图片预览最多显示前 100 页，每页固定为 1200×1600 的适配画布（保留整页比例），不影响原 PDF 的页面尺寸、矢量内容和全部页数。每页按需生成，默认最多等待 20 秒；失败可以重试。图片预览不提供文字选择，请在导出的 PDF 中复制文本。
 
 `file://` 和 GitHub Pages 的静态版本只提供编辑，不执行编译。浏览器草稿按来源隔离；从旧离线页面切到本地服务前，请先导出 ZIP，再在本地服务中打开。
 
 打开文件夹或项目包会在确认后替换当前项目；添加文件会保留已有文件，并自动为重名文件另起名称。源码中已有的 `\input`、图片路径和引用键不会因重命名文件而自动重写。
 
-## 编辑能力
+## 能力
 
 | 功能 | 支持范围 |
 | --- | --- |
@@ -90,6 +128,11 @@ Tectonic 首次编译会按需联网下载宏包和字体支持文件，之后�
 
 公式编辑窗口提供图形数学输入和标签/显示编号字段，保留公式分隔符、环境名及未编辑的原文。多行公式的标签和编号按所属行保留。自定义宏或当前渲染器不支持的复杂表达式仍可使用窗口中的高级输入或源码编辑。LaTeX 章节、基础格式、列表和简单图片保留可视化支持；其他复杂结构以可编辑原文块呈现。
 
+<p align="center">
+  <img src="screenshots/studio-formula.jpg" alt="公式工具" width="100%">
+</p>
+<p align="center"><sub>公式工具：图形输入、按行标签与编号，以及高级 LaTeX 输入。</sub></p>
+
 新建 `main.tex` 会生成完整文档；其他 `.tex` 文件默认留空，适合 `\input` 的章节片段。新建 `.ps` / `.eps` 会提供对应模板。
 
 ## 快捷键
@@ -107,15 +150,15 @@ Tectonic 首次编译会按需联网下载宏包和字体支持文件，之后�
 
 ## 数据与边界
 
-- 项目最多 500 个文件、展开后 50 MB；ZIP 包最多 100 MB。加密、分卷和 ZIP64 包暂不支持。
-- 浏览器自动保存容量由浏览器决定，可能小于项目导入上限。大项目请使用「导出 ZIP」备份；撤销历史仅保留在当前会话。
-- UTF-8 BOM、原始换行和未编辑的 LaTeX 源码块会被保留。可视化改动的区段会重新生成 LaTeX。
-- ZIP 中的项目名称、主文件和当前文件记录在 ZIP 注释中，不占用或覆盖用户文件名；第三方重新打包可能移除这些设置，但源码和资源仍可导入。
-- 编译是显式操作，默认最长 180 秒；初次下载宏包可能较慢。修复错误后可重新编译，日志包含引擎报告的文件名和行号。
-- Tectonic 提供 TeX/BibTeX 自动多遍处理；BibLaTeX/Biber 项目应使用安装了 Biber 的 XeLaTeX 工具链。中文及自定义字体需在工具链中可用。需要 shell-escape 的宏包（例如部分 minted 工作流）不受支持。
-- 字体实测限制：Tectonic 0.17.0 使用默认 ctex/Fandol 字体时，样例 PDF 的中文外观正常，但复制或文本提取的字符映射异常。Windows 上有对应系统字体时，可在自己的文档中显式使用 `\usepackage[UTF8,fontset=windows]{ctex}`；该设置已在此 Windows 样例验证复制正常。应用不会自动修改项目的字体设置，其他平台和字体组合需自行核验。
-- 服务仅绑定本机回环地址，检查 Host、Origin 和会话令牌；临时项目目录在任务结束后清理。Tectonic 使用 `--untrusted`，XeLaTeX 关闭 shell-escape，Ghostscript 使用 `SAFER`。这些选项**不是操作系统沙箱**，请编译可信的本机项目，不要将此服务改成公网编译服务。
-- 可视化编辑不提供完整 TeX 语法分析；正式排版与诊断以编译引擎结果为准。
+- **项目规模**：最多 500 个文件、展开后 50 MB；ZIP 包最多 100 MB。加密、分卷和 ZIP64 包暂不支持。
+- **草稿与备份**：浏览器自动保存容量由浏览器决定，可能小于项目导入上限。大项目请使用「导出 ZIP」备份；撤销历史仅保留在当前会话。
+- **源码保真**：UTF-8 BOM、原始换行和未编辑的 LaTeX 源码块会被保留。可视化改动的区段会重新生成 LaTeX。
+- **ZIP 元数据**：项目名称、主文件和当前文件记录在 ZIP 注释中，不占用或覆盖用户文件名；第三方重新打包可能移除这些设置，但源码和资源仍可导入。
+- **编译**：显式操作，默认最长 180 秒；初次下载宏包可能较慢。修复错误后可重新编译，日志包含引擎报告的文件名和行号。
+- **工具链**：Tectonic 提供 TeX/BibTeX 自动多遍处理；BibLaTeX/Biber 项目应使用安装了 Biber 的 XeLaTeX 工具链。中文及自定义字体需在工具链中可用。需要 shell-escape 的宏包（例如部分 minted 工作流）不受支持。
+- **字体**：Tectonic 0.17.0 使用默认 ctex/Fandol 字体时，样例 PDF 的中文外观正常，但复制或文本提取的字符映射异常。Windows 上有对应系统字体时，可在文档中显式使用 `\usepackage[UTF8,fontset=windows]{ctex}`；该设置已在此 Windows 样例验证复制正常。应用不会自动修改项目的字体设置，其他平台和字体组合需自行核验。
+- **服务边界**：服务仅绑定本机回环地址，检查 Host、Origin 和会话令牌；临时项目目录在任务结束后清理。Tectonic 使用 `--untrusted`，XeLaTeX 关闭 shell-escape，Ghostscript 使用 `SAFER`。这些选项**不是操作系统沙箱**，请编译可信的本机项目，不要将此服务改成公网编译服务。
+- **可视化范围**：可视化编辑不提供完整 TeX 语法分析；正式排版与诊断以编译引擎结果为准。
 
 ## 开发与验证
 
@@ -150,43 +193,48 @@ CI 检查 `main` / `dev` 的推送与 PR；部署和发布都在检查通过后�
 
 静态页面只依赖 `index.html`、`src/` 和 `vendor/`；`server/`、`scripts/`、`tests/` 用于本机编译、工具安装与开发。
 
-```
-index.html                         工作台入口
-src/js/                            前端脚本
-  main.js                          LaTeX 解析、转换及可视化编辑核心
-  workspace.js                     文件、编辑模式、查找替换与导入导出协调
-  project-model.js                 源码、项目状态、历史、引用索引
-  project-archive.js               无依赖 ZIP 读写
-  visual-math.js                   公式排版与图形输入
-  visual-references.js             引用语义与索引
-  visual-references-ui.js          引用编辑窗口
-  preview.js                       编译状态、PDF 预览与导出
-src/css/                           前端样式
-  style.css                        LaTeX 文档基础排版
-  workspace.css                    文件工作台与编辑区
-  preview.css                      PDF 预览与编译工具栏
-  visual-math.css                  公式显示与编辑
-  visual-references-ui.css         引用编辑窗口
-  studio.css                       Studio 主题、布局与响应式覆盖
-  studio-dialogs.css               工作台对话框
-vendor/mathlive/                   MathLive 固定版本、字体、许可及校验清单
-server/server.mjs                  回环 HTTP 服务与静态资源白名单
-server/compiler.mjs                Tectonic / XeLaTeX 编译
-server/pdf-preview.mjs             PDF 分页图片渲染
-scripts/setup-windows.ps1          Windows 便携工具安装
-scripts/start.ps1                  Windows 启动脚本
-tests/                             零依赖回归测试与浏览器验收清单
-screenshots/                       README 截图
-```
+| 路径 | 内容 |
+| --- | --- |
+| `index.html` | 工作台入口 |
+| `src/js/main.js` | LaTeX 解析、转换及可视化编辑核心 |
+| `src/js/workspace.js` | 文件、编辑模式、查找替换与导入导出协调 |
+| `src/js/project-model.js` | 源码、项目状态、历史、引用索引 |
+| `src/js/project-archive.js` | 无依赖 ZIP 读写 |
+| `src/js/visual-math.js` | 公式排版与图形输入 |
+| `src/js/visual-references.js` | 引用语义与索引 |
+| `src/js/visual-references-ui.js` | 引用编辑窗口 |
+| `src/js/preview.js` | 编译状态、PDF 预览与导出 |
+| `src/css/style.css` | LaTeX 文档基础排版 |
+| `src/css/workspace.css` | 文件工作台与编辑区 |
+| `src/css/preview.css` | PDF 预览与编译工具栏 |
+| `src/css/visual-math.css` | 公式显示与编辑 |
+| `src/css/visual-references-ui.css` | 引用编辑窗口 |
+| `src/css/studio.css` | Studio 主题、布局与响应式覆盖 |
+| `src/css/studio-dialogs.css` | 工作台对话框 |
+| `vendor/mathlive/` | MathLive 固定版本、字体、许可及校验清单 |
+| `server/server.mjs` | 回环 HTTP 服务与静态资源白名单 |
+| `server/compiler.mjs` | Tectonic / XeLaTeX 编译 |
+| `server/pdf-preview.mjs` | PDF 分页图片渲染 |
+| `scripts/setup-windows.ps1` | Windows 便携工具安装 |
+| `scripts/start.ps1` | Windows 启动脚本 |
+| `tests/` | 零依赖回归测试与浏览器验收清单 |
+| `screenshots/` | README 截图 |
+| `assets/` | README 首屏插图 |
+
+## 参与贡献
+
+欢迎提交 Issue 和 Pull Request。报告问题时请写明版本号、操作系统与浏览器版本、复现步骤，以及编译日志或控制台报错；涉及代码改动前，建议先开 Issue 说明场景，避免重复工作。提交 PR 前运行 `node tests/smoke.mjs` 与 `node --test`，并在描述中写明验证方式。提交 PR 即表示同意按本仓库许可分发你的贡献。
+
+## 版本历史
 
 <details>
-<summary><b>版本历史</b></summary>
+<summary><b>展开查看</b></summary>
 
 - **v2.1.1**：Studio 回归修复——图片标签不再转义下划线等合法字符，非法标签在插入时提示；空段落占位换行不再导出，相邻命令间补 `{}` 防止粘连；ZIP 导出记录文本编码，回导不再破坏 latin1 / UTF-8 文件；文件与目录路径冲突在创建、重命名时拒绝；取消编译会等待服务端任务收尾，结果按最后访问时间过期，任务被回收后可一键重新编译预览；公式高级输入与标签、编号双向同步；CI 增加 Windows 平台；`node --test` 331 例通过
 - **v2.1.0**：Studio 工作台——完整可视化编辑、多文件项目、公式与引用直接编辑；本机 Tectonic / XeLaTeX 与 Ghostscript 编译、分页 PDF 预览和导出；内置 MathLive 0.111.1；Windows 安装/启动脚本；前端、服务与脚本按 `src/`、`server/`、`scripts/` 分层；`node --test` 291 例通过
 - **v2.0.3**：修复导入丢内容与 HTML 注入——重写 `.tex` 解析，按命令、环境、数学、逐字块读取，未编辑的源码块逐字节保留；新增 `\(...\)`、`\[...\]` 定界符与 `\verb`、`\lstinline` 支持；双击已有公式可编辑；草稿按版本原子保存并在离开页面时落盘，旧草稿恢复前先清洗；新增 `node --test` 回归测试 70 例
 - **v2.0.2**：手机端与窄屏适配——一屏一个面板，底部 tab 在编辑区与 LaTeX 代码间切换；工具栏收成单行横向滑动，触控目标 ≥44px；补 `min-height:0` 修复代码预览被裁出屏幕；改用 `100dvh` 与 16px 输入框，iOS 聚焦不再放大整页；LaTeX 转换与导出逻辑未改动
-- **v2.0.1**：维护版本，main.js 未作修改；许可证由 MIT 改为 Apache-2.0；界面改用 design tokens 与学术暖白主题，工具栏按钮改为纯文本；新增 CI 检查与 GitHub Pages 在线演示的自动部署
+- **v2.0.1**：维护版本，main.js 未作修改；许可证由 MIT 改为 Apache-2.0；界面改用 design tokens 与学术暖白主题，工具栏按钮改为纯文本；新增 CI 检查与 GitHub Pages 自动部署
 - **v2.0.0**：去垂直化改造，转型为通用离线 LaTeX 轻编辑器；新增 .tex 导入；未支持结构原样保留，实现往返保真；修复导言区不随草稿缓存、公式误改丢数据等问题
 - **v1.1.0**：可视化编辑器 + 数模公式助手（已被 v2.0.0 移除）
 - **v1.0.0**：首个版本

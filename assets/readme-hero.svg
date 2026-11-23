@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 400" width="1600" height="400" role="img" aria-label="VisualLaTeX Studio — Edit what you see">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0d0f12"/>
+      <stop offset="0.52" stop-color="#121519"/>
+      <stop offset="1" stop-color="#0b0d10"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.44" r="0.52">
+      <stop offset="0" stop-color="#16a36a" stop-opacity="0.24"/>
+      <stop offset="0.5" stop-color="#16a36a" stop-opacity="0.07"/>
+      <stop offset="1" stop-color="#16a36a" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="fade" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0"/>
+      <stop offset="0.18" stop-color="#ffffff" stop-opacity="0.9"/>
+      <stop offset="0.82" stop-color="#ffffff" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="fadeV" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0"/>
+      <stop offset="0.2" stop-color="#ffffff" stop-opacity="1"/>
+      <stop offset="0.8" stop-color="#ffffff" stop-opacity="1"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M48 0H0V48" fill="none" stroke="#ffffff" stroke-opacity="0.05" stroke-width="1"/>
+    </pattern>
+    <linearGradient id="rule" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#16a36a" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#16a36a" stop-opacity="1"/>
+      <stop offset="1" stop-color="#16a36a" stop-opacity="0"/>
+    </linearGradient>
+    <clipPath id="card">
+      <rect width="1600" height="400" rx="28"/>
+    </clipPath>
+    <mask id="gridMask">
+      <rect width="1600" height="400" fill="url(#fade)"/>
+    </mask>
+  </defs>
+
+  <g clip-path="url(#card)">
+    <rect width="1600" height="400" fill="url(#bg)"/>
+    <g mask="url(#gridMask)">
+      <rect width="1600" height="400" fill="url(#grid)"/>
+    </g>
+    <rect width="1600" height="400" fill="url(#glow)"/>
+
+    <g fill="none" stroke="#16a36a" stroke-opacity="0.13" stroke-width="1">
+      <ellipse cx="800" cy="206" rx="556" ry="212" transform="rotate(-7 800 206)"/>
+      <ellipse cx="800" cy="206" rx="452" ry="168" transform="rotate(-7 800 206)"/>
+      <ellipse cx="800" cy="206" rx="348" ry="124" transform="rotate(-7 800 206)"/>
+    </g>
+
+    <g stroke="#16a36a" stroke-opacity="0.45" stroke-width="2" fill="none">
+      <path d="M44 72V44h28"/>
+      <path d="M1556 72V44h-28"/>
+      <path d="M44 328v28h28"/>
+      <path d="M1556 328v28h-28"/>
+    </g>
+
+    <g font-family="'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace" font-size="18" fill="#7f8f87" letter-spacing="3">
+      <text x="76" y="66">TEX · PS</text>
+      <text x="1524" y="66" text-anchor="end">PDF</text>
+      <text x="76" y="348">LOCAL-FIRST</text>
+      <text x="1524" y="348" text-anchor="end">2026</text>
+    </g>
+
+    <text x="800" y="150" text-anchor="middle" font-family="'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace" font-size="20" letter-spacing="8" fill="#8fa89b">TYPESET · EDIT · EXPORT</text>
+
+    <text x="800" y="260" text-anchor="middle" font-family="Georgia, 'Times New Roman', 'Songti SC', serif" font-size="88" letter-spacing="7" fill="#f3f6f2">EDIT WHAT YOU SEE</text>
+
+    <rect x="600" y="298" width="400" height="2" fill="url(#rule)"/>
+
+    <text x="800" y="342" text-anchor="middle" font-family="Georgia, 'Times New Roman', 'Songti SC', serif" font-style="italic" font-size="20" letter-spacing="1.5" fill="#96a29b">See what you have written, then change it.</text>
+
+    <rect x="1" y="1" width="1598" height="398" rx="27" fill="none" stroke="#ffffff" stroke-opacity="0.09"/>
+  </g>
+</svg>
